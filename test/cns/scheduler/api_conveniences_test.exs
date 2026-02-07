@@ -3,6 +3,7 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
   use Oban.Testing, repo: Cns.Repo
 
   alias Cns.Scheduler
+  alias Cns.Scheduler.Workers.RunCommand
 
   test "list_events_for_command returns events for only the selected command" do
     environment = create_environment()
@@ -11,7 +12,7 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
     command_job_one = create_command_job(command_one.id, environment.id)
     command_job_two = create_command_job(command_two.id, environment.id)
 
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = DateTime.truncate(DateTime.utc_now(), :second)
 
     Scheduler.create_command_job_event!(%{
       command_job_id: command_job_one.id,
@@ -51,17 +52,19 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
 
     assert {:ok, _id} = Scheduler.enqueue_command_run_force(disabled_command.id)
 
-    assert_enqueued(
-      worker: Cns.Scheduler.Workers.RunCommand,
-      args: %{"command_id" => disabled_command.id, "environment_id" => environment.id}
-    )
-
     command_jobs =
       Scheduler.list_command_jobs!(query: [filter: [command_id: disabled_command.id]])
 
     assert Enum.count(command_jobs) == 1
-    assert Enum.at(command_jobs, 0).environment_id == environment.id
-    assert Enum.at(command_jobs, 0).oban_job_id
+    command_job = Enum.at(command_jobs, 0)
+
+    assert command_job.environment_id == environment.id
+    assert command_job.oban_job_id
+
+    assert_enqueued(
+      worker: RunCommand,
+      args: %{"command_job_id" => command_job.id}
+    )
   end
 
   test "retry actions enqueue a new run from failed events" do
@@ -69,7 +72,7 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
     command = create_command(environment.id, "retry-command", enabled: false)
     command_job = create_command_job(command.id, environment.id)
 
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = DateTime.truncate(DateTime.utc_now(), :second)
 
     failed_event =
       Scheduler.create_command_job_event!(%{
@@ -85,10 +88,7 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
     assert {:ok, _id} = Scheduler.retry_command_job_event(failed_event.id)
     assert {:ok, _id} = Scheduler.retry_command_last_failed(command.id)
 
-    assert_enqueued(
-      worker: Cns.Scheduler.Workers.RunCommand,
-      args: %{"command_id" => command.id, "environment_id" => environment.id}
-    )
+    assert_enqueued(worker: RunCommand)
   end
 
   defp create_environment do
@@ -98,7 +98,7 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
   defp create_command(environment_id, name_prefix, attrs \\ []) do
     attrs =
       attrs
-      |> Enum.into(%{})
+      |> Map.new()
       |> Map.merge(%{
         name: "#{name_prefix}-#{System.unique_integer([:positive])}",
         shell_command: "echo test",

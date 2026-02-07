@@ -1,4 +1,5 @@
 defmodule Cns.Accounts do
+  @moduledoc false
   use Ash.Domain, otp_app: :cns, extensions: [AshAdmin.Domain]
 
   admin do

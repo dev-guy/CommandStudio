@@ -42,7 +42,7 @@ defmodule Cns.Scheduler.CommandJob do
 
     update :update do
       primary? true
-      accept [:shell_command, :cron_expression, :started_at, :finished_at]
+      accept [:oban_job_id, :shell_command, :cron_expression, :started_at, :finished_at]
     end
   end
 
@@ -50,7 +50,7 @@ defmodule Cns.Scheduler.CommandJob do
     uuid_primary_key :id
 
     attribute :oban_job_id, :integer do
-      allow_nil? false
+      allow_nil? true
       constraints min: 1
       public? true
     end

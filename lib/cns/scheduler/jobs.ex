@@ -18,13 +18,20 @@ defmodule Cns.Scheduler.Jobs do
     with {:ok, environment_id} <- resolve_environment_id(command_id, opts),
          :ok <-
            validate_enabled(command_id, environment_id, Keyword.get(opts, :force?, false)),
-         {:ok, oban_job} <-
-           %{command_id: command_id, environment_id: environment_id}
-           |> RunCommand.new(build_job_opts(opts))
-           |> Oban.insert() do
-      maybe_create_command_job(oban_job, command_id, environment_id, Keyword.get(opts, :cron_id))
+         {:ok, command} <- Scheduler.get_command(command_id),
+         {:ok, command_job} <-
+           create_command_job(command, environment_id, Keyword.get(opts, :cron_id)) do
+      case enqueue_oban_job(command_job.id, opts) do
+        {:ok, oban_job} ->
+          case Scheduler.update_command_job(command_job.id, %{oban_job_id: oban_job.id}) do
+            {:ok, _updated_command_job} -> {:ok, oban_job}
+            {:error, _reason} -> {:ok, oban_job}
+          end
 
-      {:ok, oban_job}
+        {:error, reason} ->
+          _ = Scheduler.destroy_command_job(command_job.id)
+          {:error, reason}
+      end
     end
   end
 
@@ -91,8 +98,6 @@ defmodule Cns.Scheduler.Jobs do
         true ->
           :ok
       end
-    else
-      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -120,26 +125,22 @@ defmodule Cns.Scheduler.Jobs do
     end
   end
 
-  defp maybe_create_command_job(oban_job, command_id, environment_id, cron_id) do
-    shell_command =
-      case Scheduler.get_command(command_id) do
-        {:ok, command} -> command.shell_command
-        {:error, _reason} -> ""
-      end
-
+  defp create_command_job(command, environment_id, cron_id) do
     cron_expression = resolve_cron_expression(cron_id)
 
-    case Scheduler.create_command_job(%{
-           command_id: command_id,
-           environment_id: environment_id,
-           cron_id: cron_id,
-           oban_job_id: oban_job.id,
-           shell_command: shell_command,
-           cron_expression: cron_expression
-         }) do
-      {:ok, _command_job} -> :ok
-      {:error, _reason} -> :ok
-    end
+    Scheduler.create_command_job(%{
+      command_id: command.id,
+      environment_id: environment_id,
+      cron_id: cron_id,
+      shell_command: command.shell_command,
+      cron_expression: cron_expression
+    })
+  end
+
+  defp enqueue_oban_job(command_job_id, opts) do
+    %{command_job_id: command_job_id}
+    |> RunCommand.new(build_job_opts(opts))
+    |> Oban.insert()
   end
 
   defp resolve_cron_expression(nil), do: ""

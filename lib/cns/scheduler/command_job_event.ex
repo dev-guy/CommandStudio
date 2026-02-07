@@ -79,7 +79,7 @@ defmodule Cns.Scheduler.CommandJobEvent do
     end
 
     attribute :started_at, :utc_datetime_usec do
-      allow_nil? false
+      allow_nil? true
       public? true
     end
 
@@ -108,7 +108,12 @@ defmodule Cns.Scheduler.CommandJobEvent do
       public? true
     end
 
-    create_timestamp :created_at
+    attribute :created_at, :utc_datetime_usec do
+      allow_nil? false
+      writable? false
+      default &DateTime.utc_now/0
+      public? true
+    end
   end
 
   relationships do

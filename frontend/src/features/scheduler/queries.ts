@@ -9,7 +9,11 @@ import {
   createCron,
   createEnvironment,
   createVariable,
+  destroyCommandScheduleCron,
+  destroyCommandScheduleEnvironment,
   listCommandJobEvents,
+  listCommandScheduleCrons,
+  listCommandScheduleEnvironments,
   listCommandSchedules,
   listCommands,
   listCrons,
@@ -26,6 +30,18 @@ const rpcHeaders = () => buildCSRFHeaders();
 const rpcErrorMessage = (errors: Array<{ shortMessage: string; message: string }>) =>
   errors.map((error) => error.shortMessage || error.message).join(", ");
 
+const asArray = <T>(value: unknown): T[] => {
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+
+  if (value && typeof value === "object" && Array.isArray((value as { results?: unknown[] }).results)) {
+    return (value as { results: T[] }).results;
+  }
+
+  return [];
+};
+
 export type EnvironmentRow = {
   id: string;
   name: string;
@@ -36,6 +52,7 @@ export type CronRow = {
   id: string;
   name: string;
   crontabExpression: string;
+  enabled: boolean;
 };
 
 export type VariableRow = {
@@ -116,12 +133,14 @@ export type UpdateEnvironmentPayload = {
 export type CreateCronPayload = {
   name: string;
   crontabExpression: string;
+  enabled: boolean;
 };
 
 export type UpdateCronPayload = {
   id: string;
   name?: string;
   crontabExpression?: string;
+  enabled?: boolean;
 };
 
 export type CreateVariablePayload = {
@@ -181,7 +200,7 @@ export function useCronsQuery() {
     queryKey: ["scheduler", "crons"],
     queryFn: async () => {
       const result = await listCrons({
-        fields: ["id", "name", "crontabExpression"],
+        fields: ["id", "name", "crontabExpression", "enabled"],
         sort: "name",
         headers: rpcHeaders(),
       });
@@ -265,7 +284,15 @@ export function useCommandSchedulesQuery() {
         throw new Error(rpcErrorMessage(result.errors));
       }
 
-      return result.data as CommandScheduleRow[];
+      return asArray<CommandScheduleRow>(result.data).map((schedule) => ({
+        ...schedule,
+        commandScheduleEnvironments: asArray<CommandScheduleRow["commandScheduleEnvironments"][number]>(
+          schedule.commandScheduleEnvironments,
+        ),
+        commandScheduleCrons: asArray<CommandScheduleRow["commandScheduleCrons"][number]>(
+          schedule.commandScheduleCrons,
+        ),
+      }));
     },
   });
 }
@@ -293,7 +320,7 @@ export function useExecutionEventsQuery() {
             ],
           },
         ],
-        sort: "startedAt",
+        sort: "-createdAt",
         page: { limit: 25 },
         headers: rpcHeaders(),
       });
@@ -395,7 +422,7 @@ export function useCreateCronMutation() {
     mutationFn: async (input: CreateCronPayload) => {
       const result = await createCron({
         input,
-        fields: ["id", "name", "crontabExpression"],
+        fields: ["id", "name", "crontabExpression", "enabled"],
         headers: rpcHeaders(),
       });
 
@@ -419,7 +446,7 @@ export function useUpdateCronMutation() {
       const result = await updateCron({
         identity: id,
         input,
-        fields: ["id", "name", "crontabExpression"],
+        fields: ["id", "name", "crontabExpression", "enabled"],
         headers: rpcHeaders(),
       });
 
@@ -534,22 +561,85 @@ export function useCreateCommandScheduleMutation() {
 
   return useMutation({
     mutationFn: async ({ commandId, environmentIds, cronIds }: CreateCommandSchedulePayload) => {
-      const scheduleResult = await createCommandSchedule({
-        input: { commandId },
-        fields: ["id", "commandId"],
+      const existingSchedulesResult = await listCommandSchedules({
+        fields: [
+          "id",
+          "commandId",
+          { commandScheduleEnvironments: ["id", "environmentId"] },
+          { commandScheduleCrons: ["id", "cronId"] },
+        ],
+        filter: { commandId: { eq: commandId } },
+        sort: "id",
         headers: rpcHeaders(),
       });
 
-      if (!scheduleResult.success) {
-        throw new Error(rpcErrorMessage(scheduleResult.errors));
+      if (!existingSchedulesResult.success) {
+        throw new Error(rpcErrorMessage(existingSchedulesResult.errors));
       }
 
-      const schedule = scheduleResult.data;
+      type ExistingSchedule = {
+        id: string;
+        commandId: string;
+      };
+
+      const existingSchedules = asArray<ExistingSchedule>(existingSchedulesResult.data);
+
+      const schedule =
+        existingSchedules[0] ??
+        (await (async () => {
+          const scheduleResult = await createCommandSchedule({
+            input: { commandId },
+            fields: ["id", "commandId"],
+            headers: rpcHeaders(),
+          });
+
+          if (!scheduleResult.success) {
+            throw new Error(rpcErrorMessage(scheduleResult.errors));
+          }
+
+          return scheduleResult.data as ExistingSchedule;
+        })());
+
+      const existingEnvironmentLinksResult = await listCommandScheduleEnvironments({
+        fields: ["id", "environmentId"],
+        filter: { commandScheduleId: { eq: schedule.id } },
+        headers: rpcHeaders(),
+      });
+
+      if (!existingEnvironmentLinksResult.success) {
+        throw new Error(rpcErrorMessage(existingEnvironmentLinksResult.errors));
+      }
+
+      const existingCronLinksResult = await listCommandScheduleCrons({
+        fields: ["id", "cronId"],
+        filter: { commandScheduleId: { eq: schedule.id } },
+        headers: rpcHeaders(),
+      });
+
+      if (!existingCronLinksResult.success) {
+        throw new Error(rpcErrorMessage(existingCronLinksResult.errors));
+      }
+
       const uniqueEnvironmentIds = [...new Set(environmentIds)];
       const uniqueCronIds = [...new Set(cronIds)];
+      const existingEnvironmentLinks = asArray<{ id: string; environmentId: string }>(
+        existingEnvironmentLinksResult.data,
+      );
+      const existingCronLinks = asArray<{ id: string; cronId: string }>(existingCronLinksResult.data);
+      const existingEnvironmentIds = new Set(existingEnvironmentLinks.map((entry) => entry.environmentId));
+      const existingCronIds = new Set(existingCronLinks.map((entry) => entry.cronId));
+
+      const missingEnvironmentIds = uniqueEnvironmentIds.filter(
+        (environmentId) => !existingEnvironmentIds.has(environmentId),
+      );
+      const missingCronIds = uniqueCronIds.filter((cronId) => !existingCronIds.has(cronId));
+      const obsoleteEnvironmentLinks = existingEnvironmentLinks.filter(
+        (entry) => !uniqueEnvironmentIds.includes(entry.environmentId),
+      );
+      const obsoleteCronLinks = existingCronLinks.filter((entry) => !uniqueCronIds.includes(entry.cronId));
 
       const environmentResults = await Promise.all(
-        uniqueEnvironmentIds.map((environmentId) =>
+        missingEnvironmentIds.map((environmentId) =>
           createCommandScheduleEnvironment({
             input: { commandScheduleId: schedule.id, environmentId },
             fields: ["id", "commandScheduleId", "environmentId"],
@@ -563,8 +653,22 @@ export function useCreateCommandScheduleMutation() {
         throw new Error(rpcErrorMessage(environmentError.errors));
       }
 
+      const environmentDeleteResults = await Promise.all(
+        obsoleteEnvironmentLinks.map((entry) =>
+          destroyCommandScheduleEnvironment({
+            identity: entry.id,
+            headers: rpcHeaders(),
+          }),
+        ),
+      );
+
+      const environmentDeleteError = environmentDeleteResults.find((result) => !result.success);
+      if (environmentDeleteError && !environmentDeleteError.success) {
+        throw new Error(rpcErrorMessage(environmentDeleteError.errors));
+      }
+
       const cronResults = await Promise.all(
-        uniqueCronIds.map((cronId) =>
+        missingCronIds.map((cronId) =>
           createCommandScheduleCron({
             input: { commandScheduleId: schedule.id, cronId },
             fields: ["id", "commandScheduleId", "cronId"],
@@ -576,6 +680,20 @@ export function useCreateCommandScheduleMutation() {
       const cronError = cronResults.find((result) => !result.success);
       if (cronError && !cronError.success) {
         throw new Error(rpcErrorMessage(cronError.errors));
+      }
+
+      const cronDeleteResults = await Promise.all(
+        obsoleteCronLinks.map((entry) =>
+          destroyCommandScheduleCron({
+            identity: entry.id,
+            headers: rpcHeaders(),
+          }),
+        ),
+      );
+
+      const cronDeleteError = cronDeleteResults.find((result) => !result.success);
+      if (cronDeleteError && !cronDeleteError.success) {
+        throw new Error(rpcErrorMessage(cronDeleteError.errors));
       }
 
       return schedule;

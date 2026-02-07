@@ -7,21 +7,18 @@ defmodule Cns.Scheduler.Workers.RunCommand do
   alias Cns.Scheduler.CommandRunner
 
   @impl Oban.Worker
-  def perform(%Oban.Job{
-        id: oban_job_id,
-        args: %{"command_id" => command_id, "environment_id" => environment_id}
-      }) do
-    with {:ok, command_job} <- fetch_command_job(oban_job_id),
-         {:ok, command} <- fetch_command(command_id),
-         {:ok, environment} <- fetch_environment(environment_id),
-         {rendered_command, env_pairs} <- build_command_input(command, environment),
+  def perform(%Oban.Job{args: %{"command_job_id" => command_job_id}}) do
+    with {:ok, command_job} <- fetch_command_job(command_job_id),
+         {:ok, command} <- fetch_command(command_job.command_id),
+         {:ok, environment} <- fetch_environment(command_job.environment_id),
+         {rendered_command, env_pairs} <- build_command_input(command_job, command, environment),
          {:ok, started_at} <- DateTime.now("Etc/UTC"),
-         :ok <- maybe_mark_started(oban_job_id, started_at, rendered_command),
+         :ok <- maybe_mark_started(command_job.id, started_at, rendered_command),
          {:ok, _event} <- create_started_event(command_job.id, started_at),
-         result <- CommandRunner.run(rendered_command, env_pairs, command.timeout_ms),
+         result = CommandRunner.run(rendered_command, env_pairs, command.timeout_ms),
          {:ok, finished_at} <- DateTime.now("Etc/UTC"),
-         :ok <- maybe_mark_finished(oban_job_id, finished_at),
-         duration_ms <- DateTime.diff(finished_at, started_at, :millisecond),
+         :ok <- maybe_mark_finished(command_job.id, finished_at),
+         duration_ms = DateTime.diff(finished_at, started_at, :millisecond),
          :ok <-
            create_completion_event(
              command_job.id,
@@ -39,17 +36,17 @@ defmodule Cns.Scheduler.Workers.RunCommand do
     end
   end
 
-  def perform(%Oban.Job{args: %{"command_id" => _command_id}}) do
-    {:error, "missing environment_id in job args"}
+  def perform(%Oban.Job{}) do
+    {:error, "missing command_job_id in job args"}
   end
 
   defp fetch_command(command_id) do
     Scheduler.get_command(command_id)
   end
 
-  defp fetch_command_job(oban_job_id) do
-    case Scheduler.get_command_job_by_oban_job_id(oban_job_id) do
-      {:ok, nil} -> {:error, "command job not found for oban job id #{oban_job_id}"}
+  defp fetch_command_job(command_job_id) do
+    case Scheduler.get_command_job(command_job_id) do
+      {:ok, nil} -> {:error, "command job not found for id #{command_job_id}"}
       other -> other
     end
   end
@@ -68,26 +65,27 @@ defmodule Cns.Scheduler.Workers.RunCommand do
     })
   end
 
-  defp build_command_input(command, environment) do
+  defp build_command_input(command_job, command, environment) do
     variables =
-      environment.variables
-      |> Enum.reduce(%{}, fn variable, acc ->
+      Enum.reduce(environment.variables, %{}, fn variable, acc ->
         Map.put(acc, variable.name, variable.value)
       end)
 
     env_pairs = Enum.map(variables, fn {name, value} -> {name, value} end)
-    rendered_command = CommandRunner.interpolate_command(command.shell_command, variables)
+
+    command_template =
+      if command_job.shell_command == "" do
+        command.shell_command
+      else
+        command_job.shell_command
+      end
+
+    rendered_command = CommandRunner.interpolate_command(command_template, variables)
 
     {rendered_command, env_pairs}
   end
 
-  defp create_completion_event(
-         command_job_id,
-         started_at,
-         finished_at,
-         duration_ms,
-         result
-       ) do
+  defp create_completion_event(command_job_id, started_at, finished_at, duration_ms, result) do
     {status, stdout, stderr} =
       case result do
         {:ok, {stdout, stderr, _status_code}} ->
@@ -111,24 +109,23 @@ defmodule Cns.Scheduler.Workers.RunCommand do
     end
   end
 
-  defp maybe_mark_started(oban_job_id, started_at, rendered_command)
-       when is_integer(oban_job_id) do
-    maybe_update_command_job(oban_job_id, %{
+  defp maybe_mark_started(command_job_id, started_at, rendered_command) when is_binary(command_job_id) do
+    maybe_update_command_job(command_job_id, %{
       started_at: started_at,
       shell_command: rendered_command
     })
   end
 
-  defp maybe_mark_started(_oban_job_id, _started_at, _rendered_command), do: :ok
+  defp maybe_mark_started(_command_job_id, _started_at, _rendered_command), do: :ok
 
-  defp maybe_mark_finished(oban_job_id, finished_at) when is_integer(oban_job_id) do
-    maybe_update_command_job(oban_job_id, %{finished_at: finished_at})
+  defp maybe_mark_finished(command_job_id, finished_at) when is_binary(command_job_id) do
+    maybe_update_command_job(command_job_id, %{finished_at: finished_at})
   end
 
-  defp maybe_mark_finished(_oban_job_id, _finished_at), do: :ok
+  defp maybe_mark_finished(_command_job_id, _finished_at), do: :ok
 
-  defp maybe_update_command_job(oban_job_id, attrs) do
-    case Scheduler.get_command_job_by_oban_job_id(oban_job_id) do
+  defp maybe_update_command_job(command_job_id, attrs) do
+    case Scheduler.get_command_job(command_job_id) do
       {:ok, nil} ->
         :ok
 
