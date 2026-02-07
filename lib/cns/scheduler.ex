@@ -59,10 +59,17 @@ defmodule Cns.Scheduler do
       rpc_action :retry_command_last_failed, :retry_last_failed
     end
 
-    resource Cns.Scheduler.CommandExecutionEvent do
-      rpc_action :list_command_execution_events, :read
+    resource Cns.Scheduler.CommandJobEvent do
+      rpc_action :list_command_job_events, :read
       rpc_action :list_events_for_command, :for_command
-      rpc_action :retry_command_execution_event, :retry
+      rpc_action :retry_command_job_event, :retry
+    end
+
+    resource Cns.Scheduler.CommandJob do
+      rpc_action :list_command_jobs, :read
+      rpc_action :create_command_job, :create
+      rpc_action :update_command_job, :update
+      rpc_action :destroy_command_job, :destroy
     end
   end
 
@@ -128,12 +135,21 @@ defmodule Cns.Scheduler do
       define :retry_command_last_failed, action: :retry_last_failed, args: [:id]
     end
 
-    resource Cns.Scheduler.CommandExecutionEvent do
-      define :create_command_execution_event, action: :create
-      define :list_command_execution_events, action: :read
-      define :get_command_execution_event, action: :read, get_by: [:id]
+    resource Cns.Scheduler.CommandJobEvent do
+      define :create_command_job_event, action: :create
+      define :list_command_job_events, action: :read
+      define :get_command_job_event, action: :read, get_by: [:id]
       define :list_events_for_command, action: :for_command, args: [:command_id]
-      define :retry_command_execution_event, action: :retry, args: [:id]
+      define :retry_command_job_event, action: :retry, args: [:id]
+    end
+
+    resource Cns.Scheduler.CommandJob do
+      define :create_command_job, action: :create
+      define :update_command_job, action: :update
+      define :destroy_command_job, action: :destroy
+      define :list_command_jobs, action: :read
+      define :get_command_job, action: :read, get_by: [:id]
+      define :get_command_job_by_oban_job_id, action: :read, get_by: [:oban_job_id]
     end
   end
 end

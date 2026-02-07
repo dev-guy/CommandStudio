@@ -57,7 +57,8 @@ defmodule Cns.Repo.Migrations.MigrateResources2 do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
     end
 
     create table(:command_schedule_environments, primary_key: false) do
@@ -74,7 +75,8 @@ defmodule Cns.Repo.Migrations.MigrateResources2 do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
 
       add :environment_id,
           references(:environments,
@@ -83,7 +85,8 @@ defmodule Cns.Repo.Migrations.MigrateResources2 do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:command_schedule_environments, [:command_schedule_id, :environment_id],
@@ -104,7 +107,8 @@ defmodule Cns.Repo.Migrations.MigrateResources2 do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
 
       add :cron_id,
           references(:crons,
@@ -113,7 +117,8 @@ defmodule Cns.Repo.Migrations.MigrateResources2 do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:command_schedule_crons, [:command_schedule_id, :cron_id],
@@ -134,7 +139,9 @@ defmodule Cns.Repo.Migrations.MigrateResources2 do
 
     drop_if_exists unique_index(
                      :command_schedule_environments,
-                     [:command_schedule_id, :environment_id], name: "cmd_sched_env_uidx")
+                     [:command_schedule_id, :environment_id],
+                     name: "cmd_sched_env_uidx"
+                   )
 
     drop constraint(
            :command_schedule_environments,
@@ -168,7 +175,8 @@ defmodule Cns.Repo.Migrations.MigrateResources2 do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
     end
 
     drop_if_exists unique_index(:crons, [:name], name: "crons_unique_name_index")

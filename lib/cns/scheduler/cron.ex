@@ -53,6 +53,11 @@ defmodule Cns.Scheduler.Cron do
       destination_attribute :cron_id
       public? true
     end
+
+    has_many :command_jobs, Cns.Scheduler.CommandJob do
+      destination_attribute :cron_id
+      public? true
+    end
   end
 
   identities do

@@ -7,6 +7,7 @@ defmodule Cns.Scheduler.Jobs do
   @type enqueue_opt ::
           {:force?, boolean()}
           | {:environment_id, Ecto.UUID.t()}
+          | {:cron_id, Ecto.UUID.t()}
           | {:delay_seconds, non_neg_integer()}
           | {:max_attempts, pos_integer()}
           | {:priority, non_neg_integer()}
@@ -16,10 +17,14 @@ defmodule Cns.Scheduler.Jobs do
   def enqueue_command(command_id, opts \\ []) do
     with {:ok, environment_id} <- resolve_environment_id(command_id, opts),
          :ok <-
-           validate_enabled(command_id, environment_id, Keyword.get(opts, :force?, false)) do
-      %{command_id: command_id, environment_id: environment_id}
-      |> RunCommand.new(build_job_opts(opts))
-      |> Oban.insert()
+           validate_enabled(command_id, environment_id, Keyword.get(opts, :force?, false)),
+         {:ok, oban_job} <-
+           %{command_id: command_id, environment_id: environment_id}
+           |> RunCommand.new(build_job_opts(opts))
+           |> Oban.insert() do
+      maybe_create_command_job(oban_job, command_id, environment_id, Keyword.get(opts, :cron_id))
+
+      {:ok, oban_job}
     end
   end
 
@@ -112,6 +117,37 @@ defmodule Cns.Scheduler.Jobs do
     case Keyword.get(opts, key) do
       nil -> job_opts
       value -> Keyword.put(job_opts, key, value)
+    end
+  end
+
+  defp maybe_create_command_job(oban_job, command_id, environment_id, cron_id) do
+    shell_command =
+      case Scheduler.get_command(command_id) do
+        {:ok, command} -> command.shell_command
+        {:error, _reason} -> ""
+      end
+
+    cron_expression = resolve_cron_expression(cron_id)
+
+    case Scheduler.create_command_job(%{
+           command_id: command_id,
+           environment_id: environment_id,
+           cron_id: cron_id,
+           oban_job_id: oban_job.id,
+           shell_command: shell_command,
+           cron_expression: cron_expression
+         }) do
+      {:ok, _command_job} -> :ok
+      {:error, _reason} -> :ok
+    end
+  end
+
+  defp resolve_cron_expression(nil), do: ""
+
+  defp resolve_cron_expression(cron_id) do
+    case Scheduler.get_cron(cron_id) do
+      {:ok, cron} -> cron.crontab_expression
+      {:error, _reason} -> ""
     end
   end
 end

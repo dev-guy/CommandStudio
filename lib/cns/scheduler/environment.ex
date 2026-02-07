@@ -68,6 +68,11 @@ defmodule Cns.Scheduler.Environment do
       destination_attribute :environment_id
       public? true
     end
+
+    has_many :command_jobs, Cns.Scheduler.CommandJob do
+      destination_attribute :environment_id
+      public? true
+    end
   end
 
   identities do

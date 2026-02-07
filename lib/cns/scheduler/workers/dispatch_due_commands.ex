@@ -44,29 +44,34 @@ defmodule Cns.Scheduler.Workers.DispatchDueCommands do
       |> Enum.reject(&is_nil/1)
 
     if command_schedule.command.enabled do
-      if due_now?(crons, now, command_schedule.id) do
-        environments
-        |> Enum.filter(& &1.enabled)
-        |> Enum.each(fn environment ->
-          case Jobs.enqueue_command(
-                 command_schedule.command_id,
-                 environment_id: environment.id
-               ) do
-            {:ok, _job} ->
-              :ok
+      due_crons = due_now_crons(crons, now, command_schedule.id)
 
-            {:error, reason} ->
-              Logger.error(
-                "Unable to enqueue command #{command_schedule.command_id} for environment #{environment.id}: #{inspect(reason)}"
-              )
-          end
+      if due_crons != [] do
+        enabled_environments = Enum.filter(environments, & &1.enabled)
+
+        Enum.each(due_crons, fn cron ->
+          Enum.each(enabled_environments, fn environment ->
+            case Jobs.enqueue_command(
+                   command_schedule.command_id,
+                   environment_id: environment.id,
+                   cron_id: cron.id
+                 ) do
+              {:ok, _job} ->
+                :ok
+
+              {:error, reason} ->
+                Logger.error(
+                  "Unable to enqueue command #{command_schedule.command_id} for environment #{environment.id} (cron #{cron.id}): #{inspect(reason)}"
+                )
+            end
+          end)
         end)
       end
     end
   end
 
-  defp due_now?(crons, now, command_schedule_id) do
-    Enum.any?(crons, fn cron ->
+  defp due_now_crons(crons, now, command_schedule_id) do
+    Enum.filter(crons, fn cron ->
       case Expression.parse(cron.crontab_expression) do
         {:ok, expression} ->
           Expression.now?(expression, now)
