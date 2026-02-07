@@ -18,6 +18,7 @@ mix style
 Notes:
 - `mix precommit` is defined in this project and runs compile (warnings as errors), unlocks unused deps, formats code, and runs tests.
 - `mix precommit` does **not** run Credo, Sobelow, Styler, or Dialyzer, so run those separately.
+- Run database migrations with `mix ash.migrate`.
 
 ## Credo
 

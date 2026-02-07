@@ -1,7 +1,11 @@
+Read AGENTS.md in the parent directory
+
 Read the following files in this directory:
 
 - memories.md
 - dev.md
+- elixir.md
+- ash.md
 
 Consult the other documents in this directory when you need them
 

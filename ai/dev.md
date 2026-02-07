@@ -1,0 +1,3 @@
+- The main UI is a React app located in frontend/
+- The backend is a Phoenix + Ash + Oban app
+- The React app uses Tanstack query to talk to the Ash Typescript API
