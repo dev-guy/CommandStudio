@@ -3,14 +3,18 @@ defmodule CnsWeb.LiveUserAuth do
   Helpers for authenticating users in LiveViews.
   """
 
-  import Phoenix.Component
   use CnsWeb, :verified_routes
+
+  import Phoenix.Component
+
+  alias AshAuthentication.Phoenix.LiveSession
+  alias Phoenix.LiveView
 
   # This is used for nested liveviews to fetch the current user.
   # To use, place the following at the top of that liveview:
   # on_mount {CnsWeb.LiveUserAuth, :current_user}
   def on_mount(:current_user, _params, session, socket) do
-    {:cont, AshAuthentication.Phoenix.LiveSession.assign_new_resources(socket, session)}
+    {:cont, LiveSession.assign_new_resources(socket, session)}
   end
 
   def on_mount(:live_user_optional, _params, _session, socket) do
@@ -25,13 +29,13 @@ defmodule CnsWeb.LiveUserAuth do
     if socket.assigns[:current_user] do
       {:cont, socket}
     else
-      {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/sign-in")}
+      {:halt, LiveView.redirect(socket, to: ~p"/sign-in")}
     end
   end
 
   def on_mount(:live_no_user, _params, _session, socket) do
     if socket.assigns[:current_user] do
-      {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/")}
+      {:halt, LiveView.redirect(socket, to: ~p"/")}
     else
       {:cont, assign(socket, :current_user, nil)}
     end

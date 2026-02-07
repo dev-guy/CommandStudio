@@ -2,7 +2,7 @@
 
 This guide covers day-to-day quality checks for this project.
 
-## Baseline workflow
+## PR Checklist
 
 Run these before opening a PR:
 
@@ -12,13 +12,15 @@ mix precommit
 mix credo --strict
 mix sobelow
 mix dialyzer
-mix style
 ```
 
-Notes:
-- `mix precommit` is defined in this project and runs compile (warnings as errors), unlocks unused deps, formats code, and runs tests.
-- `mix precommit` does **not** run Credo, Sobelow, Styler, or Dialyzer, so run those separately.
-- Run database migrations with `mix ash.migrate`.
+Address the errors and warnings from the output of the above commands. Follow the additional instructions below. 
+
+Then run:
+
+```bash
+mix precommit
+```
 
 ## Credo
 
@@ -29,7 +31,6 @@ mix credo --strict
 ```
 
 Best practices:
-- Run with `--strict` before every PR.
 - Fix root causes instead of disabling checks unless there is a clear reason.
 - Re-run after significant refactors.
 
@@ -77,7 +78,6 @@ mix dialyzer
 ```
 
 Best practices:
-- Run before PRs that touch core business logic, concurrency, or boundaries.
 - Keep specs accurate and up to date.
 - Treat new warnings as blockers unless explicitly triaged.
 
@@ -90,19 +90,9 @@ mix sobelow
 ```
 
 Best practices:
-- Run before each PR, especially after auth, params, controller, or LiveView changes.
 - Treat high-confidence findings as blockers until triaged or fixed.
 - Re-run after making security-related refactors.
 
 ## Styler
 
-Use Styler to enforce idiomatic Elixir style beyond default formatting.
-
-```bash
-mix style
-```
-
-Best practices:
-- Run after major edits and before final review.
-- Keep style changes in the same PR only when relevant; otherwise isolate large style-only rewrites.
-- Use Styler together with `mix format` (already included in `mix precommit`).
+Use Styler enforces idiomatic Elixir style beyond default formatting. It is automatically run during `mix precommit`.

@@ -1,13 +1,6 @@
 import Config
-config :ash, policies: [show_policy_breakdowns?: true]
 
-config :cns, Cns.Vault,
-  ciphers: [
-    default: {
-      Cloak.Ciphers.AES.GCM,
-      tag: "AES.GCM.V1", key: Base.decode64!("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
-    }
-  ]
+config :ash, policies: [show_policy_breakdowns?: true]
 
 # Configure your database
 config :cns, Cns.Repo,
@@ -18,6 +11,14 @@ config :cns, Cns.Repo,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
+
+config :cns, Cns.Vault,
+  ciphers: [
+    default: {
+      Cloak.Ciphers.AES.GCM,
+      tag: "AES.GCM.V1", key: Base.decode64!("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
+    }
+  ]
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -82,12 +83,12 @@ config :cns, dev_routes: true, token_signing_secret: "HFJHGoQPkK/NTg3Fj31iLmWgsp
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 
+# Initialize plugs at runtime for faster development compilation
+config :phoenix, :plug_init_mode, :runtime
+
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20
-
-# Initialize plugs at runtime for faster development compilation
-config :phoenix, :plug_init_mode, :runtime
 
 config :phoenix_live_view,
   # Include debug annotations and locations in rendered markup.

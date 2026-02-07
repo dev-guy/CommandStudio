@@ -1,4 +1,5 @@
 defmodule Cns.Accounts.Token do
+  @moduledoc false
   use Ash.Resource,
     otp_app: :cns,
     domain: Cns.Accounts,

@@ -7,6 +7,7 @@ defmodule Cns.Accounts.User.Senders.SendMagicLinkEmail do
   use CnsWeb, :verified_routes
 
   import Swoosh.Email
+
   alias Cns.Mailer
 
   @impl true
@@ -21,7 +22,6 @@ defmodule Cns.Accounts.User.Senders.SendMagicLinkEmail do
       end
 
     new()
-    # TODO: Replace with your email
     |> from({"noreply", "noreply@example.com"})
     |> to(to_string(email))
     |> subject("Your login link")

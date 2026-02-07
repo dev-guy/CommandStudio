@@ -51,13 +51,11 @@ defmodule Cns.Scheduler.Workers.RunCommandTest do
     assert :ok =
              RunCommand.perform(%Oban.Job{
                id: 101,
-               args: %{"command_id" => command.id, "environment_id" => environment.id}
+               args: %{"command_job_id" => command_job.id}
              })
 
     events =
-      Scheduler.list_command_job_events!(
-        query: [filter: [command_job_id: command_job.id], sort: [started_at: :asc]]
-      )
+      Scheduler.list_command_job_events!(query: [filter: [command_job_id: command_job.id], sort: [started_at: :asc]])
 
     assert Enum.count(events) == 2
     assert Enum.at(events, 0).status == "started"
@@ -110,13 +108,11 @@ defmodule Cns.Scheduler.Workers.RunCommandTest do
     assert {:error, _message} =
              RunCommand.perform(%Oban.Job{
                id: 102,
-               args: %{"command_id" => command.id, "environment_id" => environment.id}
+               args: %{"command_job_id" => command_job.id}
              })
 
     events =
-      Scheduler.list_command_job_events!(
-        query: [filter: [command_job_id: command_job.id], sort: [started_at: :asc]]
-      )
+      Scheduler.list_command_job_events!(query: [filter: [command_job_id: command_job.id], sort: [started_at: :asc]])
 
     assert Enum.count(events) == 2
     assert Enum.at(events, 0).status == "started"

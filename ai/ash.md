@@ -1,6 +1,5 @@
 # Ash Notes
 
-- You should not generate database migrations manually
-- Ash generates migrations
+- Do not generate database migrations manually
 - Run `mix ash.codegen --dev` after changing resources to update the migrations
 - Run `mix ash.migration` to apply the migrations to the database

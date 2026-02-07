@@ -21,12 +21,12 @@ defmodule Cns.Scheduler.Cron do
 
     create :create do
       primary? true
-      accept [:name, :crontab_expression]
+      accept [:name, :crontab_expression, :enabled]
     end
 
     update :update do
       primary? true
-      accept [:name, :crontab_expression]
+      accept [:name, :crontab_expression, :enabled]
     end
   end
 
@@ -41,6 +41,12 @@ defmodule Cns.Scheduler.Cron do
     attribute :crontab_expression, :string do
       allow_nil? false
       constraints match: ~r/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/
+      public? true
+    end
+
+    attribute :enabled, :boolean do
+      allow_nil? false
+      default true
       public? true
     end
 

@@ -34,10 +34,11 @@ export type EnvironmentAttributesOnlySchema = {
 // Cron Schema
 export type CronResourceSchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "name" | "crontabExpression";
+  __primitiveFields: "id" | "name" | "crontabExpression" | "enabled";
   id: UUID;
   name: string;
   crontabExpression: string;
+  enabled: boolean;
   commandScheduleCrons: { __type: "Relationship"; __array: true; __resource: CommandScheduleCronResourceSchema; };
   commandJobs: { __type: "Relationship"; __array: true; __resource: CommandJobResourceSchema; };
 };
@@ -46,18 +47,20 @@ export type CronResourceSchema = {
 
 export type CronAttributesOnlySchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "name" | "crontabExpression";
+  __primitiveFields: "id" | "name" | "crontabExpression" | "enabled";
   id: UUID;
   name: string;
   crontabExpression: string;
+  enabled: boolean;
 };
 
 
 // CommandSchedule Schema
 export type CommandScheduleResourceSchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "commandId";
+  __primitiveFields: "id" | "enabled" | "commandId";
   id: UUID;
+  enabled: boolean;
   commandId: UUID;
   command: { __type: "Relationship"; __resource: CommandResourceSchema; };
   commandScheduleEnvironments: { __type: "Relationship"; __array: true; __resource: CommandScheduleEnvironmentResourceSchema; };
@@ -68,8 +71,9 @@ export type CommandScheduleResourceSchema = {
 
 export type CommandScheduleAttributesOnlySchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "commandId";
+  __primitiveFields: "id" | "enabled" | "commandId";
   id: UUID;
+  enabled: boolean;
   commandId: UUID;
 };
 
@@ -169,14 +173,15 @@ export type CommandAttributesOnlySchema = {
 // CommandJobEvent Schema
 export type CommandJobEventResourceSchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "status" | "startedAt" | "finishedAt" | "durationMs" | "stdout" | "stderr" | "commandJobId";
+  __primitiveFields: "id" | "status" | "startedAt" | "finishedAt" | "durationMs" | "stdout" | "stderr" | "createdAt" | "commandJobId";
   id: UUID;
   status: string;
-  startedAt: UtcDateTimeUsec;
+  startedAt: UtcDateTimeUsec | null;
   finishedAt: UtcDateTimeUsec | null;
   durationMs: number | null;
   stdout: string;
   stderr: string;
+  createdAt: UtcDateTimeUsec;
   commandJobId: UUID;
   commandJob: { __type: "Relationship"; __resource: CommandJobResourceSchema; };
 };
@@ -185,14 +190,15 @@ export type CommandJobEventResourceSchema = {
 
 export type CommandJobEventAttributesOnlySchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "status" | "startedAt" | "finishedAt" | "durationMs" | "stdout" | "stderr" | "commandJobId";
+  __primitiveFields: "id" | "status" | "startedAt" | "finishedAt" | "durationMs" | "stdout" | "stderr" | "createdAt" | "commandJobId";
   id: UUID;
   status: string;
-  startedAt: UtcDateTimeUsec;
+  startedAt: UtcDateTimeUsec | null;
   finishedAt: UtcDateTimeUsec | null;
   durationMs: number | null;
   stdout: string;
   stderr: string;
+  createdAt: UtcDateTimeUsec;
   commandJobId: UUID;
 };
 
@@ -202,7 +208,7 @@ export type CommandJobResourceSchema = {
   __type: "Resource";
   __primitiveFields: "id" | "obanJobId" | "shellCommand" | "cronExpression" | "startedAt" | "finishedAt" | "commandId" | "environmentId" | "cronId";
   id: UUID;
-  obanJobId: number;
+  obanJobId: number | null;
   shellCommand: string;
   cronExpression: string;
   startedAt: UtcDateTimeUsec | null;
@@ -222,7 +228,7 @@ export type CommandJobAttributesOnlySchema = {
   __type: "Resource";
   __primitiveFields: "id" | "obanJobId" | "shellCommand" | "cronExpression" | "startedAt" | "finishedAt" | "commandId" | "environmentId" | "cronId";
   id: UUID;
-  obanJobId: number;
+  obanJobId: number | null;
   shellCommand: string;
   cronExpression: string;
   startedAt: UtcDateTimeUsec | null;
@@ -288,6 +294,11 @@ export type CronFilterInput = {
     in?: Array<string>;
   };
 
+  enabled?: {
+    eq?: boolean;
+    notEq?: boolean;
+  };
+
 
   commandScheduleCrons?: CommandScheduleCronFilterInput;
 
@@ -303,6 +314,11 @@ export type CommandScheduleFilterInput = {
     eq?: UUID;
     notEq?: UUID;
     in?: Array<UUID>;
+  };
+
+  enabled?: {
+    eq?: boolean;
+    notEq?: boolean;
   };
 
   commandId?: {
@@ -511,6 +527,16 @@ export type CommandJobEventFilterInput = {
     eq?: string;
     notEq?: string;
     in?: Array<string>;
+  };
+
+  createdAt?: {
+    eq?: UtcDateTimeUsec;
+    notEq?: UtcDateTimeUsec;
+    greaterThan?: UtcDateTimeUsec;
+    greaterThanOrEqual?: UtcDateTimeUsec;
+    lessThan?: UtcDateTimeUsec;
+    lessThanOrEqual?: UtcDateTimeUsec;
+    in?: Array<UtcDateTimeUsec>;
   };
 
   commandJobId?: {
@@ -1642,6 +1668,7 @@ export async function validateListCrons(
 export type CreateCronInput = {
   name: string;
   crontabExpression: string;
+  enabled?: boolean;
 };
 
 export type CreateCronFields = UnifiedFieldSelection<CronResourceSchema>[];
@@ -1715,6 +1742,7 @@ export async function validateCreateCron(
 export type UpdateCronInput = {
   name?: string;
   crontabExpression?: string;
+  enabled?: boolean;
 };
 
 export type UpdateCronFields = UnifiedFieldSelection<CronResourceSchema>[];
@@ -1953,6 +1981,7 @@ export async function validateListCommandSchedules(
 
 export type CreateCommandScheduleInput = {
   commandId: UUID;
+  enabled?: boolean;
 };
 
 export type CreateCommandScheduleFields = UnifiedFieldSelection<CommandScheduleResourceSchema>[];
@@ -2025,6 +2054,7 @@ export async function validateCreateCommandSchedule(
 
 export type UpdateCommandScheduleInput = {
   commandId?: UUID;
+  enabled?: boolean;
 };
 
 export type UpdateCommandScheduleFields = UnifiedFieldSelection<CommandScheduleResourceSchema>[];
@@ -3874,7 +3904,7 @@ export type CreateCommandJobInput = {
   commandId: UUID;
   environmentId: UUID;
   cronId?: UUID | null;
-  obanJobId: number;
+  obanJobId?: number | null;
   shellCommand?: string;
   cronExpression?: string;
   startedAt?: UtcDateTimeUsec | null;
@@ -3950,6 +3980,7 @@ export async function validateCreateCommandJob(
 
 
 export type UpdateCommandJobInput = {
+  obanJobId?: number | null;
   shellCommand?: string;
   cronExpression?: string;
   startedAt?: UtcDateTimeUsec | null;

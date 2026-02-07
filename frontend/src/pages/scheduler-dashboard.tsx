@@ -88,6 +88,8 @@ const queryError = (...messages: Array<string | undefined>) =>
   messages.find((message) => message && message.length > 0) || null;
 
 const unique = (values: string[]) => [...new Set(values)];
+const sameIds = (left: string[], right: string[]) =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
 
 export function SchedulerDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -100,9 +102,11 @@ export function SchedulerDashboard() {
 
   const [createCronName, setCreateCronName] = useState("");
   const [createCronExpression, setCreateCronExpression] = useState("* * * * *");
+  const [createCronEnabled, setCreateCronEnabled] = useState(true);
   const [updateCronId, setUpdateCronId] = useState("");
   const [updateCronName, setUpdateCronName] = useState("");
   const [updateCronExpression, setUpdateCronExpression] = useState("* * * * *");
+  const [updateCronEnabled, setUpdateCronEnabled] = useState(true);
 
   const [createVariableName, setCreateVariableName] = useState("");
   const [createVariableValue, setCreateVariableValue] = useState("");
@@ -170,10 +174,7 @@ export function SchedulerDashboard() {
       setUpdateEnvironmentEnabled(firstEnvironment.enabled);
     }
 
-    if (!scheduleEnvironmentIds.length && environments.length > 0) {
-      setScheduleEnvironmentIds([environments[0].id]);
-    }
-  }, [createVariableEnvironmentId, environments, scheduleEnvironmentIds.length, updateEnvironmentId]);
+  }, [createVariableEnvironmentId, environments, updateEnvironmentId]);
 
   useEffect(() => {
     if (!updateCronId && crons.length > 0) {
@@ -181,12 +182,10 @@ export function SchedulerDashboard() {
       setUpdateCronId(firstCron.id);
       setUpdateCronName(firstCron.name);
       setUpdateCronExpression(firstCron.crontabExpression);
+      setUpdateCronEnabled(firstCron.enabled);
     }
 
-    if (!scheduleCronIds.length && crons.length > 0) {
-      setScheduleCronIds([crons[0].id]);
-    }
-  }, [crons, scheduleCronIds.length, updateCronId]);
+  }, [crons, updateCronId]);
 
   useEffect(() => {
     if (!updateVariableId && variables.length > 0) {
@@ -228,6 +227,7 @@ export function SchedulerDashboard() {
     if (selectedCron) {
       setUpdateCronName(selectedCron.name);
       setUpdateCronExpression(selectedCron.crontabExpression);
+      setUpdateCronEnabled(selectedCron.enabled);
     }
   }, [selectedCron?.id]);
 
@@ -300,6 +300,54 @@ export function SchedulerDashboard() {
       {},
     );
   }, [commandSchedules]);
+
+  const scheduleSelectionByCommandId = useMemo(() => {
+    return commandSchedules.reduce<Record<string, { environmentIds: string[]; cronIds: string[] }>>(
+      (acc, schedule) => {
+        const commandId = schedule.commandId;
+        const environmentIds = schedule.commandScheduleEnvironments.map((entry) => entry.environmentId);
+        const cronIds = schedule.commandScheduleCrons.map((entry) => entry.cronId);
+        const existing = acc[commandId] ?? { environmentIds: [], cronIds: [] };
+
+        acc[commandId] = {
+          environmentIds: unique(existing.environmentIds.concat(environmentIds)),
+          cronIds: unique(existing.cronIds.concat(cronIds)),
+        };
+
+        return acc;
+      },
+      {},
+    );
+  }, [commandSchedules]);
+
+  useEffect(() => {
+    if (!scheduleCommandId) {
+      return;
+    }
+
+    const selected = scheduleSelectionByCommandId[scheduleCommandId] ?? {
+      environmentIds: [],
+      cronIds: [],
+    };
+
+    const knownEnvironmentIds = new Set(environments.map((environment) => environment.id));
+    const knownCronIds = new Set(crons.map((cron) => cron.id));
+    const nextEnvironmentIds = selected.environmentIds.filter((id) => knownEnvironmentIds.has(id));
+    const nextCronIds = selected.cronIds.filter((id) => knownCronIds.has(id));
+
+    if (!sameIds(scheduleEnvironmentIds, nextEnvironmentIds)) {
+      setScheduleEnvironmentIds(nextEnvironmentIds);
+    }
+
+    if (!sameIds(scheduleCronIds, nextCronIds)) {
+      setScheduleCronIds(nextCronIds);
+    }
+  }, [
+    crons,
+    environments,
+    scheduleCommandId,
+    scheduleSelectionByCommandId,
+  ]);
 
   const filteredCommands = useMemo(() => {
     if (!normalizedSearch) {
@@ -378,10 +426,12 @@ export function SchedulerDashboard() {
     await createCronMutation.mutateAsync({
       name: createCronName.trim(),
       crontabExpression: createCronExpression.trim(),
+      enabled: createCronEnabled,
     });
 
     setCreateCronName("");
     setCreateCronExpression("* * * * *");
+    setCreateCronEnabled(true);
   };
 
   const handleUpdateCron = async (event: FormEvent<HTMLFormElement>) => {
@@ -395,6 +445,7 @@ export function SchedulerDashboard() {
       id: updateCronId,
       name: updateCronName.trim(),
       crontabExpression: updateCronExpression.trim(),
+      enabled: updateCronEnabled,
     });
   };
 
@@ -470,7 +521,7 @@ export function SchedulerDashboard() {
   const handleCreateSchedule = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!scheduleCommandId || scheduleEnvironmentIds.length === 0 || scheduleCronIds.length === 0) {
+    if (!scheduleCommandId) {
       return;
     }
 
@@ -488,7 +539,7 @@ export function SchedulerDashboard() {
   ) => {
     if (currentValues.includes(nextValue)) {
       const nextValues = currentValues.filter((value) => value !== nextValue);
-      setter(nextValues.length === 0 ? [nextValue] : nextValues);
+      setter(nextValues);
       return;
     }
 
@@ -650,6 +701,14 @@ export function SchedulerDashboard() {
                   onChange={(event) => setCreateCronExpression(event.target.value)}
                   placeholder="* * * * *"
                 />
+                <label className="flex items-center gap-2 text-sm text-zinc-600">
+                  <input
+                    type="checkbox"
+                    checked={createCronEnabled}
+                    onChange={(event) => setCreateCronEnabled(event.target.checked)}
+                  />
+                  enabled
+                </label>
                 <Button className="w-full" disabled={createCronMutation.isPending}>
                   {createCronMutation.isPending ? "Creating..." : "Create Cron"}
                 </Button>
@@ -677,6 +736,14 @@ export function SchedulerDashboard() {
                   onChange={(event) => setUpdateCronExpression(event.target.value)}
                   placeholder="* * * * *"
                 />
+                <label className="flex items-center gap-2 text-sm text-zinc-600">
+                  <input
+                    type="checkbox"
+                    checked={updateCronEnabled}
+                    onChange={(event) => setUpdateCronEnabled(event.target.checked)}
+                  />
+                  enabled
+                </label>
                 <Button variant="secondary" className="w-full" disabled={updateCronMutation.isPending}>
                   {updateCronMutation.isPending ? "Updating..." : "Update Cron"}
                 </Button>
@@ -885,7 +952,7 @@ export function SchedulerDashboard() {
                 </div>
 
                 <Button className="w-full" disabled={createCommandScheduleMutation.isPending}>
-                  {createCommandScheduleMutation.isPending ? "Creating..." : "Create Schedule"}
+                  {createCommandScheduleMutation.isPending ? "Saving..." : "Update Schedule"}
                 </Button>
               </form>
             </CardContent>

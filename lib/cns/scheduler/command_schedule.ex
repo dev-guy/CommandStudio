@@ -25,17 +25,23 @@ defmodule Cns.Scheduler.CommandSchedule do
 
     create :create do
       primary? true
-      accept [:command_id]
+      accept [:command_id, :enabled]
     end
 
     update :update do
       primary? true
-      accept [:command_id]
+      accept [:command_id, :enabled]
     end
   end
 
   attributes do
     uuid_primary_key :id
+
+    attribute :enabled, :boolean do
+      allow_nil? false
+      default true
+      public? true
+    end
 
     create_timestamp :created_at
     update_timestamp :updated_at

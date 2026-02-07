@@ -30,24 +30,23 @@ defmodule Cns.Scheduler.Workers.DispatchDueCommandsTest do
 
     assert :ok = DispatchDueCommands.perform(%Oban.Job{})
 
-    assert_enqueued(
-      worker: RunCommand,
-      args: %{"command_id" => command.id, "environment_id" => enabled_environment.id}
-    )
-
-    refute_enqueued(
-      worker: RunCommand,
-      args: %{"command_id" => command.id, "environment_id" => disabled_environment.id}
-    )
-
     command_jobs =
       Scheduler.list_command_jobs!(query: [filter: [command_id: command.id, cron_id: cron.id]])
 
     assert Enum.count(command_jobs) == 1
-    assert Enum.at(command_jobs, 0).environment_id == enabled_environment.id
-    assert Enum.at(command_jobs, 0).oban_job_id
-    assert Enum.at(command_jobs, 0).shell_command == command.shell_command
-    assert Enum.at(command_jobs, 0).cron_expression == cron.crontab_expression
+    command_job = Enum.at(command_jobs, 0)
+
+    assert command_job.environment_id == enabled_environment.id
+    assert command_job.oban_job_id
+    assert command_job.shell_command == command.shell_command
+    assert command_job.cron_expression == cron.crontab_expression
+
+    assert_enqueued(worker: RunCommand, args: %{"command_job_id" => command_job.id})
+
+    disabled_environment_jobs =
+      Scheduler.list_command_jobs!(query: [filter: [command_id: command.id, environment_id: disabled_environment.id]])
+
+    assert disabled_environment_jobs == []
   end
 
   test "perform skips disabled commands" do
@@ -68,10 +67,53 @@ defmodule Cns.Scheduler.Workers.DispatchDueCommandsTest do
 
     assert :ok = DispatchDueCommands.perform(%Oban.Job{})
 
-    refute_enqueued(
-      worker: RunCommand,
-      args: %{"command_id" => command.id, "environment_id" => environment.id}
-    )
+    refute_enqueued(worker: RunCommand)
+  end
+
+  test "perform skips disabled command schedules" do
+    command = create_command(true)
+    environment = create_environment(true)
+    cron = create_cron("* * * * *")
+
+    command_schedule =
+      Scheduler.create_command_schedule!(%{command_id: command.id, enabled: false})
+
+    Scheduler.create_command_schedule_environment!(%{
+      command_schedule_id: command_schedule.id,
+      environment_id: environment.id
+    })
+
+    Scheduler.create_command_schedule_cron!(%{
+      command_schedule_id: command_schedule.id,
+      cron_id: cron.id
+    })
+
+    assert :ok = DispatchDueCommands.perform(%Oban.Job{})
+
+    refute_enqueued(worker: RunCommand)
+    assert Scheduler.list_command_jobs!() == []
+  end
+
+  test "perform skips disabled crons" do
+    command = create_command(true)
+    environment = create_environment(true)
+    cron = create_cron("* * * * *", false)
+    command_schedule = Scheduler.create_command_schedule!(%{command_id: command.id})
+
+    Scheduler.create_command_schedule_environment!(%{
+      command_schedule_id: command_schedule.id,
+      environment_id: environment.id
+    })
+
+    Scheduler.create_command_schedule_cron!(%{
+      command_schedule_id: command_schedule.id,
+      cron_id: cron.id
+    })
+
+    assert :ok = DispatchDueCommands.perform(%Oban.Job{})
+
+    refute_enqueued(worker: RunCommand)
+    assert Scheduler.list_command_jobs!() == []
   end
 
   defp create_environment(enabled) do
@@ -90,10 +132,11 @@ defmodule Cns.Scheduler.Workers.DispatchDueCommandsTest do
     })
   end
 
-  defp create_cron(expression) do
+  defp create_cron(expression, enabled \\ true) do
     Scheduler.create_cron!(%{
       name: "dispatch-cron-#{System.unique_integer([:positive])}",
-      crontab_expression: expression
+      crontab_expression: expression,
+      enabled: enabled
     })
   end
 end

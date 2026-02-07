@@ -1,10 +1,14 @@
 defmodule Cns.Accounts.User do
+  @moduledoc false
   use Ash.Resource,
     otp_app: :cns,
     domain: Cns.Accounts,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
     extensions: [AshAuthentication]
+
+  alias AshAuthentication.Strategy.Password.HashPasswordChange
+  alias AshAuthentication.Strategy.Password.PasswordConfirmationValidation
 
   authentication do
     add_ons do
@@ -91,7 +95,7 @@ defmodule Cns.Accounts.User do
       validate {AshAuthentication.Strategy.Password.PasswordValidation,
                 strategy_name: :password, password_argument: :current_password}
 
-      change {AshAuthentication.Strategy.Password.HashPasswordChange, strategy_name: :password}
+      change {HashPasswordChange, strategy_name: :password}
     end
 
     read :sign_in_with_password do
@@ -169,13 +173,13 @@ defmodule Cns.Accounts.User do
       change set_attribute(:email, arg(:email))
 
       # Hashes the provided password
-      change AshAuthentication.Strategy.Password.HashPasswordChange
+      change HashPasswordChange
 
       # Generates an authentication token for the user
       change AshAuthentication.GenerateTokenChange
 
       # validates that the password matches the confirmation
-      validate AshAuthentication.Strategy.Password.PasswordConfirmationValidation
+      validate PasswordConfirmationValidation
 
       metadata :token, :string do
         description "A JWT that can be used to authenticate the user."
@@ -222,10 +226,10 @@ defmodule Cns.Accounts.User do
       validate AshAuthentication.Strategy.Password.ResetTokenValidation
 
       # validates that the password matches the confirmation
-      validate AshAuthentication.Strategy.Password.PasswordConfirmationValidation
+      validate PasswordConfirmationValidation
 
       # Hashes the provided password
-      change AshAuthentication.Strategy.Password.HashPasswordChange
+      change HashPasswordChange
 
       # Generates an authentication token for the user
       change AshAuthentication.GenerateTokenChange
@@ -251,8 +255,7 @@ defmodule Cns.Accounts.User do
       # Uses the information from the token to create or sign in the user
       change AshAuthentication.Strategy.MagicLink.SignInChange
 
-      change {AshAuthentication.Strategy.RememberMe.MaybeGenerateTokenChange,
-              strategy_name: :remember_me}
+      change {AshAuthentication.Strategy.RememberMe.MaybeGenerateTokenChange, strategy_name: :remember_me}
 
       metadata :token, :string do
         allow_nil? false

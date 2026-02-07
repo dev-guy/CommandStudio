@@ -3,6 +3,9 @@ defmodule Cns.Repo do
     otp_app: :cns
 
   @impl true
+  def all_tenants, do: []
+
+  @impl true
   def installed_extensions do
     # Add extensions here, and the migration generator will install them.
     ["ash-functions", "citext", AshMoney.AshPostgresExtension]

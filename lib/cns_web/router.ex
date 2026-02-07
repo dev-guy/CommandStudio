@@ -1,10 +1,12 @@
 defmodule CnsWeb.Router do
   use CnsWeb, :router
-
-  import Oban.Web.Router
   use AshAuthentication.Phoenix.Router
 
   import AshAuthentication.Plug.Helpers
+  import Oban.Web.Router
+
+  alias Cns.Accounts.User
+  alias Elixir.AshAuthentication.Phoenix.Overrides.DaisyUI
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -12,7 +14,12 @@ defmodule CnsWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {CnsWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" =>
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' ws: wss:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'"
+    }
+
     plug :load_from_session
   end
 
@@ -52,7 +59,7 @@ defmodule CnsWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
-    auth_routes AuthController, Cns.Accounts.User, path: "/auth"
+    auth_routes AuthController, User, path: "/auth"
     sign_out_route AuthController
 
     # Remove these if you'd like to use your own authentication views
@@ -62,25 +69,25 @@ defmodule CnsWeb.Router do
                   on_mount: [{CnsWeb.LiveUserAuth, :live_no_user}],
                   overrides: [
                     CnsWeb.AuthOverrides,
-                    Elixir.AshAuthentication.Phoenix.Overrides.DaisyUI
+                    DaisyUI
                   ]
 
     # Remove this if you do not want to use the reset password feature
     reset_route auth_routes_prefix: "/auth",
                 overrides: [
                   CnsWeb.AuthOverrides,
-                  Elixir.AshAuthentication.Phoenix.Overrides.DaisyUI
+                  DaisyUI
                 ]
 
     # Remove this if you do not use the confirmation strategy
-    confirm_route Cns.Accounts.User, :confirm_new_user,
+    confirm_route User, :confirm_new_user,
       auth_routes_prefix: "/auth",
-      overrides: [CnsWeb.AuthOverrides, Elixir.AshAuthentication.Phoenix.Overrides.DaisyUI]
+      overrides: [CnsWeb.AuthOverrides, DaisyUI]
 
     # Remove this if you do not use the magic link strategy.
-    magic_sign_in_route(Cns.Accounts.User, :magic_link,
+    magic_sign_in_route(User, :magic_link,
       auth_routes_prefix: "/auth",
-      overrides: [CnsWeb.AuthOverrides, Elixir.AshAuthentication.Phoenix.Overrides.DaisyUI]
+      overrides: [CnsWeb.AuthOverrides, DaisyUI]
     )
   end
 
