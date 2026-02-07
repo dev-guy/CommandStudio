@@ -1,3 +1,4 @@
+/.claude
 /_build
 /cover
 /deps
@@ -8,3 +9,4 @@ erl_crash.dump
 *.beam
 /config/*.secret.exs
 .elixir_ls/
+
