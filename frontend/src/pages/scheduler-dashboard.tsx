@@ -332,7 +332,7 @@ export function SchedulerDashboard() {
 
     return events.filter((event) => {
       const commandName = event.command?.name ?? "";
-      return `${commandName} ${event.status} ${event.stdout} ${event.stderr}`
+      return `${commandName} ${event.shellCommand} ${event.cronExpression} ${event.status} ${event.stdout} ${event.stderr}`
         .toLowerCase()
         .includes(normalizedSearch);
     });
@@ -1047,6 +1047,8 @@ export function SchedulerDashboard() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Command</TableHead>
+                        <TableHead>Shell command</TableHead>
+                        <TableHead>Cron expression</TableHead>
                         <TableHead>Started at</TableHead>
                         <TableHead>Duration</TableHead>
                         <TableHead>Status</TableHead>
@@ -1058,6 +1060,12 @@ export function SchedulerDashboard() {
                         <TableRow key={executionEvent.id}>
                           <TableCell className="font-medium">
                             {executionEvent.command?.name ?? executionEvent.commandId}
+                          </TableCell>
+                          <TableCell className="max-w-[320px] truncate font-mono text-xs text-zinc-700">
+                            {executionEvent.shellCommand || "-"}
+                          </TableCell>
+                          <TableCell className="max-w-[220px] truncate font-mono text-xs text-zinc-600">
+                            {executionEvent.cronExpression || "-"}
                           </TableCell>
                           <TableCell>{formatTimestamp(executionEvent.startedAt)}</TableCell>
                           <TableCell>
@@ -1078,7 +1086,7 @@ export function SchedulerDashboard() {
                       ))}
                       {!loading && filteredEvents.length === 0 && (
                         <TableRow>
-                          <TableCell className="text-zinc-500" colSpan={5}>
+                          <TableCell className="text-zinc-500" colSpan={7}>
                             No events matched your search.
                           </TableCell>
                         </TableRow>

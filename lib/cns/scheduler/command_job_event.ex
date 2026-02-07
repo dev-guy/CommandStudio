@@ -1,4 +1,4 @@
-defmodule Cns.Scheduler.CommandExecutionEvent do
+defmodule Cns.Scheduler.CommandJobEvent do
   @moduledoc false
 
   use Ash.Resource,
@@ -10,21 +10,21 @@ defmodule Cns.Scheduler.CommandExecutionEvent do
   alias Cns.Scheduler.Jobs
 
   postgres do
-    table "command_execution_events"
+    table "command_job_events"
     repo Cns.Repo
 
     references do
-      reference :command, on_delete: :delete
+      reference :command_job, on_delete: :delete
     end
 
     custom_indexes do
-      index [:command_id, :started_at]
+      index [:command_job_id, :started_at]
       index [:status, :started_at]
     end
   end
 
   typescript do
-    type_name "CommandExecutionEvent"
+    type_name "CommandJobEvent"
   end
 
   actions do
@@ -32,22 +32,39 @@ defmodule Cns.Scheduler.CommandExecutionEvent do
 
     create :create do
       primary? true
-      accept [:command_id, :status, :started_at, :finished_at, :duration_ms, :stdout, :stderr]
+
+      accept [
+        :command_job_id,
+        :status,
+        :started_at,
+        :finished_at,
+        :duration_ms,
+        :stdout,
+        :stderr
+      ]
+
       validate one_of(:status, ["started", "succeeded", "failed"])
     end
 
     read :for_command do
       argument :command_id, :uuid, allow_nil?: false
-      filter expr(command_id == ^arg(:command_id))
+      filter expr(command_job.command_id == ^arg(:command_id))
     end
 
     action :retry, :uuid do
       argument :id, :uuid, allow_nil?: false
 
       run fn input, _context ->
-        with {:ok, event} <- Cns.Scheduler.get_command_execution_event(input.arguments.id),
-             {:ok, _job} <- Jobs.enqueue_command(event.command_id, force?: true) do
-          {:ok, event.command_id}
+        with {:ok, event} <-
+               Cns.Scheduler.get_command_job_event(input.arguments.id, load: [command_job: []]),
+             {:ok, _job} <-
+               Jobs.enqueue_command(
+                 event.command_job.command_id,
+                 force?: true,
+                 environment_id: event.command_job.environment_id,
+                 cron_id: event.command_job.cron_id
+               ) do
+          {:ok, event.command_job.command_id}
         end
       end
     end
@@ -95,7 +112,7 @@ defmodule Cns.Scheduler.CommandExecutionEvent do
   end
 
   relationships do
-    belongs_to :command, Cns.Scheduler.Command do
+    belongs_to :command_job, Cns.Scheduler.CommandJob do
       allow_nil? false
       public? true
     end

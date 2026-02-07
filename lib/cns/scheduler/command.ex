@@ -42,7 +42,7 @@ defmodule Cns.Scheduler.Command do
       run fn input, _context ->
         case Jobs.enqueue_command(
                input.arguments.id,
-               environment_id: input.arguments.environment_id
+               environment_id: Map.get(input.arguments, :environment_id)
              ) do
           {:ok, _job} -> {:ok, input.arguments.id}
           {:error, reason} -> {:error, reason}
@@ -58,7 +58,7 @@ defmodule Cns.Scheduler.Command do
       run fn input, _context ->
         case Jobs.enqueue_command(
                input.arguments.id,
-               environment_id: input.arguments.environment_id,
+               environment_id: Map.get(input.arguments, :environment_id),
                delay_seconds: input.arguments.delay_seconds
              ) do
           {:ok, _job} -> {:ok, input.arguments.id}
@@ -75,7 +75,7 @@ defmodule Cns.Scheduler.Command do
         case Jobs.enqueue_command(
                input.arguments.id,
                force?: true,
-               environment_id: input.arguments.environment_id
+               environment_id: Map.get(input.arguments, :environment_id)
              ) do
           {:ok, _job} -> {:ok, input.arguments.id}
           {:error, reason} -> {:error, reason}
@@ -87,9 +87,9 @@ defmodule Cns.Scheduler.Command do
       argument :id, :uuid, allow_nil?: false
 
       run fn input, _context ->
-        case Cns.Scheduler.list_command_execution_events(
+        case Cns.Scheduler.list_command_job_events(
                query: [
-                 filter: [command_id: input.arguments.id, status: "failed"],
+                 filter: [command_job: [command_id: input.arguments.id], status: "failed"],
                  sort: [started_at: :desc],
                  limit: 1
                ]
@@ -101,7 +101,7 @@ defmodule Cns.Scheduler.Command do
             end
 
           {:ok, []} ->
-            {:error, "no failed execution event found for command"}
+            {:error, "no failed command job event found for command"}
 
           {:error, reason} ->
             {:error, reason}
@@ -142,7 +142,7 @@ defmodule Cns.Scheduler.Command do
   end
 
   relationships do
-    has_many :execution_events, Cns.Scheduler.CommandExecutionEvent do
+    has_many :command_jobs, Cns.Scheduler.CommandJob do
       destination_attribute :command_id
       public? true
     end

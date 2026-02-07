@@ -17,6 +17,7 @@ export type EnvironmentResourceSchema = {
   enabled: boolean;
   variables: { __type: "Relationship"; __array: true; __resource: VariableResourceSchema; };
   commandScheduleEnvironments: { __type: "Relationship"; __array: true; __resource: CommandScheduleEnvironmentResourceSchema; };
+  commandJobs: { __type: "Relationship"; __array: true; __resource: CommandJobResourceSchema; };
 };
 
 
@@ -38,6 +39,7 @@ export type CronResourceSchema = {
   name: string;
   crontabExpression: string;
   commandScheduleCrons: { __type: "Relationship"; __array: true; __resource: CommandScheduleCronResourceSchema; };
+  commandJobs: { __type: "Relationship"; __array: true; __resource: CommandJobResourceSchema; };
 };
 
 
@@ -147,7 +149,7 @@ export type CommandResourceSchema = {
   shellCommand: string;
   enabled: boolean;
   timeoutMs: number;
-  executionEvents: { __type: "Relationship"; __array: true; __resource: CommandExecutionEventResourceSchema; };
+  commandJobs: { __type: "Relationship"; __array: true; __resource: CommandJobResourceSchema; };
   commandSchedules: { __type: "Relationship"; __array: true; __resource: CommandScheduleResourceSchema; };
 };
 
@@ -164,10 +166,10 @@ export type CommandAttributesOnlySchema = {
 };
 
 
-// CommandExecutionEvent Schema
-export type CommandExecutionEventResourceSchema = {
+// CommandJobEvent Schema
+export type CommandJobEventResourceSchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "status" | "startedAt" | "finishedAt" | "durationMs" | "stdout" | "stderr" | "commandId";
+  __primitiveFields: "id" | "status" | "startedAt" | "finishedAt" | "durationMs" | "stdout" | "stderr" | "commandJobId";
   id: UUID;
   status: string;
   startedAt: UtcDateTimeUsec;
@@ -175,15 +177,15 @@ export type CommandExecutionEventResourceSchema = {
   durationMs: number | null;
   stdout: string;
   stderr: string;
-  commandId: UUID;
-  command: { __type: "Relationship"; __resource: CommandResourceSchema; };
+  commandJobId: UUID;
+  commandJob: { __type: "Relationship"; __resource: CommandJobResourceSchema; };
 };
 
 
 
-export type CommandExecutionEventAttributesOnlySchema = {
+export type CommandJobEventAttributesOnlySchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "status" | "startedAt" | "finishedAt" | "durationMs" | "stdout" | "stderr" | "commandId";
+  __primitiveFields: "id" | "status" | "startedAt" | "finishedAt" | "durationMs" | "stdout" | "stderr" | "commandJobId";
   id: UUID;
   status: string;
   startedAt: UtcDateTimeUsec;
@@ -191,7 +193,43 @@ export type CommandExecutionEventAttributesOnlySchema = {
   durationMs: number | null;
   stdout: string;
   stderr: string;
+  commandJobId: UUID;
+};
+
+
+// CommandJob Schema
+export type CommandJobResourceSchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "obanJobId" | "shellCommand" | "cronExpression" | "startedAt" | "finishedAt" | "commandId" | "environmentId" | "cronId";
+  id: UUID;
+  obanJobId: number;
+  shellCommand: string;
+  cronExpression: string;
+  startedAt: UtcDateTimeUsec | null;
+  finishedAt: UtcDateTimeUsec | null;
   commandId: UUID;
+  environmentId: UUID;
+  cronId: UUID | null;
+  command: { __type: "Relationship"; __resource: CommandResourceSchema; };
+  environment: { __type: "Relationship"; __resource: EnvironmentResourceSchema; };
+  cron: { __type: "Relationship"; __resource: CronResourceSchema | null; };
+  commandJobEvents: { __type: "Relationship"; __array: true; __resource: CommandJobEventResourceSchema; };
+};
+
+
+
+export type CommandJobAttributesOnlySchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "obanJobId" | "shellCommand" | "cronExpression" | "startedAt" | "finishedAt" | "commandId" | "environmentId" | "cronId";
+  id: UUID;
+  obanJobId: number;
+  shellCommand: string;
+  cronExpression: string;
+  startedAt: UtcDateTimeUsec | null;
+  finishedAt: UtcDateTimeUsec | null;
+  commandId: UUID;
+  environmentId: UUID;
+  cronId: UUID | null;
 };
 
 
@@ -224,6 +262,8 @@ export type EnvironmentFilterInput = {
 
   commandScheduleEnvironments?: CommandScheduleEnvironmentFilterInput;
 
+  commandJobs?: CommandJobFilterInput;
+
 };
 export type CronFilterInput = {
   and?: Array<CronFilterInput>;
@@ -250,6 +290,8 @@ export type CronFilterInput = {
 
 
   commandScheduleCrons?: CommandScheduleCronFilterInput;
+
+  commandJobs?: CommandJobFilterInput;
 
 };
 export type CommandScheduleFilterInput = {
@@ -407,15 +449,15 @@ export type CommandFilterInput = {
   };
 
 
-  executionEvents?: CommandExecutionEventFilterInput;
+  commandJobs?: CommandJobFilterInput;
 
   commandSchedules?: CommandScheduleFilterInput;
 
 };
-export type CommandExecutionEventFilterInput = {
-  and?: Array<CommandExecutionEventFilterInput>;
-  or?: Array<CommandExecutionEventFilterInput>;
-  not?: Array<CommandExecutionEventFilterInput>;
+export type CommandJobEventFilterInput = {
+  and?: Array<CommandJobEventFilterInput>;
+  or?: Array<CommandJobEventFilterInput>;
+  not?: Array<CommandJobEventFilterInput>;
 
   id?: {
     eq?: UUID;
@@ -471,7 +513,82 @@ export type CommandExecutionEventFilterInput = {
     in?: Array<string>;
   };
 
+  commandJobId?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+
+  commandJob?: CommandJobFilterInput;
+
+};
+export type CommandJobFilterInput = {
+  and?: Array<CommandJobFilterInput>;
+  or?: Array<CommandJobFilterInput>;
+  not?: Array<CommandJobFilterInput>;
+
+  id?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+  obanJobId?: {
+    eq?: number;
+    notEq?: number;
+    greaterThan?: number;
+    greaterThanOrEqual?: number;
+    lessThan?: number;
+    lessThanOrEqual?: number;
+    in?: Array<number>;
+  };
+
+  shellCommand?: {
+    eq?: string;
+    notEq?: string;
+    in?: Array<string>;
+  };
+
+  cronExpression?: {
+    eq?: string;
+    notEq?: string;
+    in?: Array<string>;
+  };
+
+  startedAt?: {
+    eq?: UtcDateTimeUsec;
+    notEq?: UtcDateTimeUsec;
+    greaterThan?: UtcDateTimeUsec;
+    greaterThanOrEqual?: UtcDateTimeUsec;
+    lessThan?: UtcDateTimeUsec;
+    lessThanOrEqual?: UtcDateTimeUsec;
+    in?: Array<UtcDateTimeUsec>;
+  };
+
+  finishedAt?: {
+    eq?: UtcDateTimeUsec;
+    notEq?: UtcDateTimeUsec;
+    greaterThan?: UtcDateTimeUsec;
+    greaterThanOrEqual?: UtcDateTimeUsec;
+    lessThan?: UtcDateTimeUsec;
+    lessThanOrEqual?: UtcDateTimeUsec;
+    in?: Array<UtcDateTimeUsec>;
+  };
+
   commandId?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+  environmentId?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+  cronId?: {
     eq?: UUID;
     notEq?: UUID;
     in?: Array<UUID>;
@@ -479,6 +596,12 @@ export type CommandExecutionEventFilterInput = {
 
 
   command?: CommandFilterInput;
+
+  environment?: EnvironmentFilterInput;
+
+  cron?: CronFilterInput;
+
+  commandJobEvents?: CommandJobEventFilterInput;
 
 };
 
@@ -3404,21 +3527,21 @@ export async function validateRetryCommandLastFailed(
 }
 
 
-export type ListCommandExecutionEventsFields = UnifiedFieldSelection<CommandExecutionEventResourceSchema>[];
+export type ListCommandJobEventsFields = UnifiedFieldSelection<CommandJobEventResourceSchema>[];
 
 
-export type InferListCommandExecutionEventsResult<
-  Fields extends ListCommandExecutionEventsFields | undefined,
-  Page extends ListCommandExecutionEventsConfig["page"] = undefined
-> = ConditionalPaginatedResultMixed<Page, Array<InferResult<CommandExecutionEventResourceSchema, Fields>>, {
-  results: Array<InferResult<CommandExecutionEventResourceSchema, Fields>>;
+export type InferListCommandJobEventsResult<
+  Fields extends ListCommandJobEventsFields | undefined,
+  Page extends ListCommandJobEventsConfig["page"] = undefined
+> = ConditionalPaginatedResultMixed<Page, Array<InferResult<CommandJobEventResourceSchema, Fields>>, {
+  results: Array<InferResult<CommandJobEventResourceSchema, Fields>>;
   hasMore: boolean;
   limit: number;
   offset: number;
   count?: number | null;
   type: "offset";
 }, {
-  results: Array<InferResult<CommandExecutionEventResourceSchema, Fields>>;
+  results: Array<InferResult<CommandJobEventResourceSchema, Fields>>;
   hasMore: boolean;
   limit: number;
   after: string | null;
@@ -3429,10 +3552,10 @@ export type InferListCommandExecutionEventsResult<
   type: "keyset";
 }>;
 
-export type ListCommandExecutionEventsConfig = {
+export type ListCommandJobEventsConfig = {
   tenant?: string;
-  fields: ListCommandExecutionEventsFields;
-  filter?: CommandExecutionEventFilterInput;
+  fields: ListCommandJobEventsFields;
+  filter?: CommandJobEventFilterInput;
   sort?: string;
   page?: (
     {
@@ -3450,21 +3573,21 @@ export type ListCommandExecutionEventsConfig = {
   customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 };
 
-export type ListCommandExecutionEventsResult<Fields extends ListCommandExecutionEventsFields, Page extends ListCommandExecutionEventsConfig["page"] = undefined> = | { success: true; data: InferListCommandExecutionEventsResult<Fields, Page>; }
+export type ListCommandJobEventsResult<Fields extends ListCommandJobEventsFields, Page extends ListCommandJobEventsConfig["page"] = undefined> = | { success: true; data: InferListCommandJobEventsResult<Fields, Page>; }
 | { success: false; errors: AshRpcError[]; }
 
 ;
 
 /**
- * Read CommandExecutionEvent records
+ * Read CommandJobEvent records
  *
  * @ashActionType :read
  */
-export async function listCommandExecutionEvents<Fields extends ListCommandExecutionEventsFields, Config extends ListCommandExecutionEventsConfig = ListCommandExecutionEventsConfig>(
+export async function listCommandJobEvents<Fields extends ListCommandJobEventsFields, Config extends ListCommandJobEventsConfig = ListCommandJobEventsConfig>(
   config: Config & { fields: Fields }
-): Promise<ListCommandExecutionEventsResult<Fields, Config["page"]>> {
+): Promise<ListCommandJobEventsResult<Fields, Config["page"]>> {
   const payload = {
-    action: "list_command_execution_events",
+    action: "list_command_job_events",
     ...(config.tenant !== undefined && { tenant: config.tenant }),
     ...(config.fields !== undefined && { fields: config.fields }),
     ...(config.filter && { filter: config.filter }),
@@ -3472,7 +3595,7 @@ export async function listCommandExecutionEvents<Fields extends ListCommandExecu
     ...(config.page && { page: config.page })
   };
 
-  return executeActionRpcRequest<ListCommandExecutionEventsResult<Fields, Config["page"]>>(
+  return executeActionRpcRequest<ListCommandJobEventsResult<Fields, Config["page"]>>(
     payload,
     config
   );
@@ -3480,12 +3603,12 @@ export async function listCommandExecutionEvents<Fields extends ListCommandExecu
 
 
 /**
- * Validate: Read CommandExecutionEvent records
+ * Validate: Read CommandJobEvent records
  *
  * @ashActionType :read
  * @validation true
  */
-export async function validateListCommandExecutionEvents(
+export async function validateListCommandJobEvents(
   config: {
   tenant?: string;
   headers?: Record<string, string>;
@@ -3494,7 +3617,7 @@ export async function validateListCommandExecutionEvents(
 }
 ): Promise<ValidationResult> {
   const payload = {
-    action: "list_command_execution_events",
+    action: "list_command_job_events",
     ...(config.tenant !== undefined && { tenant: config.tenant })
   };
 
@@ -3509,10 +3632,10 @@ export type ListEventsForCommandInput = {
   commandId: UUID;
 };
 
-export type ListEventsForCommandFields = UnifiedFieldSelection<CommandExecutionEventResourceSchema>[];
+export type ListEventsForCommandFields = UnifiedFieldSelection<CommandJobEventResourceSchema>[];
 export type InferListEventsForCommandResult<
   Fields extends ListEventsForCommandFields,
-> = Array<InferResult<CommandExecutionEventResourceSchema, Fields>>;
+> = Array<InferResult<CommandJobEventResourceSchema, Fields>>;
 
 export type ListEventsForCommandResult<Fields extends ListEventsForCommandFields> = | { success: true; data: InferListEventsForCommandResult<Fields>; }
 | { success: false; errors: AshRpcError[]; }
@@ -3520,7 +3643,7 @@ export type ListEventsForCommandResult<Fields extends ListEventsForCommandFields
 ;
 
 /**
- * Read CommandExecutionEvent records
+ * Read CommandJobEvent records
  *
  * @ashActionType :read
  */
@@ -3529,7 +3652,7 @@ export async function listEventsForCommand<Fields extends ListEventsForCommandFi
   tenant?: string;
   input: ListEventsForCommandInput;
   fields: Fields;
-  filter?: CommandExecutionEventFilterInput;
+  filter?: CommandJobEventFilterInput;
   sort?: string;
   headers?: Record<string, string>;
   fetchOptions?: RequestInit;
@@ -3553,7 +3676,7 @@ export async function listEventsForCommand<Fields extends ListEventsForCommandFi
 
 
 /**
- * Validate: Read CommandExecutionEvent records
+ * Validate: Read CommandJobEvent records
  *
  * @ashActionType :read
  * @validation true
@@ -3580,38 +3703,38 @@ export async function validateListEventsForCommand(
 }
 
 
-export type RetryCommandExecutionEventInput = {
+export type RetryCommandJobEventInput = {
   id: UUID;
 };
 
-export type InferRetryCommandExecutionEventResult = UUID;
+export type InferRetryCommandJobEventResult = UUID;
 
-export type RetryCommandExecutionEventResult = | { success: true; data: InferRetryCommandExecutionEventResult; }
+export type RetryCommandJobEventResult = | { success: true; data: InferRetryCommandJobEventResult; }
 | { success: false; errors: AshRpcError[]; }
 
 ;
 
 /**
- * Execute generic action on CommandExecutionEvent
+ * Execute generic action on CommandJobEvent
  *
  * @ashActionType :action
  */
-export async function retryCommandExecutionEvent(
+export async function retryCommandJobEvent(
   config: {
   tenant?: string;
-  input: RetryCommandExecutionEventInput;
+  input: RetryCommandJobEventInput;
   headers?: Record<string, string>;
   fetchOptions?: RequestInit;
   customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
-): Promise<RetryCommandExecutionEventResult> {
+): Promise<RetryCommandJobEventResult> {
   const payload = {
-    action: "retry_command_execution_event",
+    action: "retry_command_job_event",
     ...(config.tenant !== undefined && { tenant: config.tenant }),
     input: config.input
   };
 
-  return executeActionRpcRequest<RetryCommandExecutionEventResult>(
+  return executeActionRpcRequest<RetryCommandJobEventResult>(
     payload,
     config
   );
@@ -3619,24 +3742,344 @@ export async function retryCommandExecutionEvent(
 
 
 /**
- * Validate: Execute generic action on CommandExecutionEvent
+ * Validate: Execute generic action on CommandJobEvent
  *
  * @ashActionType :action
  * @validation true
  */
-export async function validateRetryCommandExecutionEvent(
+export async function validateRetryCommandJobEvent(
   config: {
   tenant?: string;
-  input: RetryCommandExecutionEventInput;
+  input: RetryCommandJobEventInput;
   headers?: Record<string, string>;
   fetchOptions?: RequestInit;
   customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
 ): Promise<ValidationResult> {
   const payload = {
-    action: "retry_command_execution_event",
+    action: "retry_command_job_event",
     ...(config.tenant !== undefined && { tenant: config.tenant }),
     input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type ListCommandJobsFields = UnifiedFieldSelection<CommandJobResourceSchema>[];
+
+
+export type InferListCommandJobsResult<
+  Fields extends ListCommandJobsFields | undefined,
+  Page extends ListCommandJobsConfig["page"] = undefined
+> = ConditionalPaginatedResultMixed<Page, Array<InferResult<CommandJobResourceSchema, Fields>>, {
+  results: Array<InferResult<CommandJobResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  offset: number;
+  count?: number | null;
+  type: "offset";
+}, {
+  results: Array<InferResult<CommandJobResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  after: string | null;
+  before: string | null;
+  previousPage: string;
+  nextPage: string;
+  count?: number | null;
+  type: "keyset";
+}>;
+
+export type ListCommandJobsConfig = {
+  tenant?: string;
+  fields: ListCommandJobsFields;
+  filter?: CommandJobFilterInput;
+  sort?: string;
+  page?: (
+    {
+      limit?: number;
+      offset?: number;
+      count?: boolean;
+    } | {
+      limit?: number;
+      after?: string;
+      before?: string;
+    }
+  );
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+};
+
+export type ListCommandJobsResult<Fields extends ListCommandJobsFields, Page extends ListCommandJobsConfig["page"] = undefined> = | { success: true; data: InferListCommandJobsResult<Fields, Page>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Read CommandJob records
+ *
+ * @ashActionType :read
+ */
+export async function listCommandJobs<Fields extends ListCommandJobsFields, Config extends ListCommandJobsConfig = ListCommandJobsConfig>(
+  config: Config & { fields: Fields }
+): Promise<ListCommandJobsResult<Fields, Config["page"]>> {
+  const payload = {
+    action: "list_command_jobs",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    ...(config.fields !== undefined && { fields: config.fields }),
+    ...(config.filter && { filter: config.filter }),
+    ...(config.sort && { sort: config.sort }),
+    ...(config.page && { page: config.page })
+  };
+
+  return executeActionRpcRequest<ListCommandJobsResult<Fields, Config["page"]>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Read CommandJob records
+ *
+ * @ashActionType :read
+ * @validation true
+ */
+export async function validateListCommandJobs(
+  config: {
+  tenant?: string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "list_command_jobs",
+    ...(config.tenant !== undefined && { tenant: config.tenant })
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type CreateCommandJobInput = {
+  commandId: UUID;
+  environmentId: UUID;
+  cronId?: UUID | null;
+  obanJobId: number;
+  shellCommand?: string;
+  cronExpression?: string;
+  startedAt?: UtcDateTimeUsec | null;
+  finishedAt?: UtcDateTimeUsec | null;
+};
+
+export type CreateCommandJobFields = UnifiedFieldSelection<CommandJobResourceSchema>[];
+
+export type InferCreateCommandJobResult<
+  Fields extends CreateCommandJobFields | undefined,
+> = InferResult<CommandJobResourceSchema, Fields>;
+
+export type CreateCommandJobResult<Fields extends CreateCommandJobFields | undefined = undefined> = | { success: true; data: InferCreateCommandJobResult<Fields>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Create a new CommandJob
+ *
+ * @ashActionType :create
+ */
+export async function createCommandJob<Fields extends CreateCommandJobFields | undefined = undefined>(
+  config: {
+  tenant?: string;
+  input: CreateCommandJobInput;
+  fields?: Fields;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<CreateCommandJobResult<Fields extends undefined ? [] : Fields>> {
+  const payload = {
+    action: "create_command_job",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input,
+    ...(config.fields !== undefined && { fields: config.fields })
+  };
+
+  return executeActionRpcRequest<CreateCommandJobResult<Fields extends undefined ? [] : Fields>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Create a new CommandJob
+ *
+ * @ashActionType :create
+ * @validation true
+ */
+export async function validateCreateCommandJob(
+  config: {
+  tenant?: string;
+  input: CreateCommandJobInput;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "create_command_job",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type UpdateCommandJobInput = {
+  shellCommand?: string;
+  cronExpression?: string;
+  startedAt?: UtcDateTimeUsec | null;
+  finishedAt?: UtcDateTimeUsec | null;
+};
+
+export type UpdateCommandJobFields = UnifiedFieldSelection<CommandJobResourceSchema>[];
+
+export type InferUpdateCommandJobResult<
+  Fields extends UpdateCommandJobFields | undefined,
+> = InferResult<CommandJobResourceSchema, Fields>;
+
+export type UpdateCommandJobResult<Fields extends UpdateCommandJobFields | undefined = undefined> = | { success: true; data: InferUpdateCommandJobResult<Fields>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Update an existing CommandJob
+ *
+ * @ashActionType :update
+ */
+export async function updateCommandJob<Fields extends UpdateCommandJobFields | undefined = undefined>(
+  config: {
+  tenant?: string;
+  identity: UUID;
+  input?: UpdateCommandJobInput;
+  fields?: Fields;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<UpdateCommandJobResult<Fields extends undefined ? [] : Fields>> {
+  const payload = {
+    action: "update_command_job",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity,
+    input: config.input,
+    ...(config.fields !== undefined && { fields: config.fields })
+  };
+
+  return executeActionRpcRequest<UpdateCommandJobResult<Fields extends undefined ? [] : Fields>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Update an existing CommandJob
+ *
+ * @ashActionType :update
+ * @validation true
+ */
+export async function validateUpdateCommandJob(
+  config: {
+  tenant?: string;
+  identity: UUID | string;
+  input?: UpdateCommandJobInput;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "update_command_job",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity,
+    input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+
+export type DestroyCommandJobResult = | { success: true; data: {}; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Delete a CommandJob
+ *
+ * @ashActionType :destroy
+ */
+export async function destroyCommandJob(
+  config: {
+  tenant?: string;
+  identity: UUID;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<DestroyCommandJobResult> {
+  const payload = {
+    action: "destroy_command_job",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeActionRpcRequest<DestroyCommandJobResult>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Delete a CommandJob
+ *
+ * @ashActionType :destroy
+ * @validation true
+ */
+export async function validateDestroyCommandJob(
+  config: {
+  tenant?: string;
+  identity: UUID | string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "destroy_command_job",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
   };
 
   return executeValidationRpcRequest<ValidationResult>(

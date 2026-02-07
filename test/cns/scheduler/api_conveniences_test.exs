@@ -8,11 +8,13 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
     environment = create_environment()
     command_one = create_command(environment.id, "list-events-one")
     command_two = create_command(environment.id, "list-events-two")
+    command_job_one = create_command_job(command_one.id, environment.id)
+    command_job_two = create_command_job(command_two.id, environment.id)
 
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    Scheduler.create_command_execution_event!(%{
-      command_id: command_one.id,
+    Scheduler.create_command_job_event!(%{
+      command_job_id: command_job_one.id,
       status: "succeeded",
       started_at: now,
       finished_at: now,
@@ -21,8 +23,8 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
       stderr: ""
     })
 
-    Scheduler.create_command_execution_event!(%{
-      command_id: command_two.id,
+    Scheduler.create_command_job_event!(%{
+      command_job_id: command_job_two.id,
       status: "failed",
       started_at: now,
       finished_at: now,
@@ -34,7 +36,7 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
     events = Scheduler.list_events_for_command!(command_one.id)
 
     assert Enum.count(events) == 1
-    assert Enum.at(events, 0).command_id == command_one.id
+    assert Enum.at(events, 0).command_job_id == command_job_one.id
   end
 
   test "manual trigger variants support delayed and forced execution" do
@@ -53,17 +55,25 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
       worker: Cns.Scheduler.Workers.RunCommand,
       args: %{"command_id" => disabled_command.id, "environment_id" => environment.id}
     )
+
+    command_jobs =
+      Scheduler.list_command_jobs!(query: [filter: [command_id: disabled_command.id]])
+
+    assert Enum.count(command_jobs) == 1
+    assert Enum.at(command_jobs, 0).environment_id == environment.id
+    assert Enum.at(command_jobs, 0).oban_job_id
   end
 
   test "retry actions enqueue a new run from failed events" do
     environment = create_environment()
     command = create_command(environment.id, "retry-command", enabled: false)
+    command_job = create_command_job(command.id, environment.id)
 
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     failed_event =
-      Scheduler.create_command_execution_event!(%{
-        command_id: command.id,
+      Scheduler.create_command_job_event!(%{
+        command_job_id: command_job.id,
         status: "failed",
         started_at: now,
         finished_at: now,
@@ -72,7 +82,7 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
         stderr: "boom"
       })
 
-    assert {:ok, _id} = Scheduler.retry_command_execution_event(failed_event.id)
+    assert {:ok, _id} = Scheduler.retry_command_job_event(failed_event.id)
     assert {:ok, _id} = Scheduler.retry_command_last_failed(command.id)
 
     assert_enqueued(
@@ -116,5 +126,13 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
     })
 
     command
+  end
+
+  defp create_command_job(command_id, environment_id) do
+    Scheduler.create_command_job!(%{
+      command_id: command_id,
+      environment_id: environment_id,
+      oban_job_id: System.unique_integer([:positive])
+    })
   end
 end

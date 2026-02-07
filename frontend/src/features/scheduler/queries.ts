@@ -9,7 +9,7 @@ import {
   createCron,
   createEnvironment,
   createVariable,
-  listCommandExecutionEvents,
+  listCommandJobEvents,
   listCommandSchedules,
   listCommands,
   listCrons,
@@ -92,6 +92,9 @@ export type ExecutionEventRow = {
   durationMs: number | null;
   stdout: string;
   stderr: string;
+  commandJobId: string;
+  shellCommand: string;
+  cronExpression: string;
   commandId: string;
   command?: {
     id: string;
@@ -271,7 +274,7 @@ export function useExecutionEventsQuery() {
   return useQuery({
     queryKey: ["scheduler", "execution-events"],
     queryFn: async () => {
-      const result = await listCommandExecutionEvents({
+      const result = await listCommandJobEvents({
         fields: [
           "id",
           "status",
@@ -279,8 +282,16 @@ export function useExecutionEventsQuery() {
           "durationMs",
           "stdout",
           "stderr",
-          "commandId",
-          { command: ["id", "name"] },
+          "commandJobId",
+          {
+            commandJob: [
+              "id",
+              "commandId",
+              "shellCommand",
+              "cronExpression",
+              { command: ["id", "name"] },
+            ],
+          },
         ],
         sort: "startedAt",
         page: { limit: 25 },
@@ -291,8 +302,41 @@ export function useExecutionEventsQuery() {
         throw new Error(rpcErrorMessage(result.errors));
       }
 
-      const data = result.data as ExecutionEventRow[] | { results?: ExecutionEventRow[] };
-      return Array.isArray(data) ? data : data.results ?? [];
+      const data =
+        (Array.isArray(result.data)
+          ? result.data
+          : (result.data as { results?: unknown[] }).results ?? []) as Array<{
+          id: string;
+          status: string;
+          startedAt: string;
+          durationMs: number | null;
+          stdout: string;
+          stderr: string;
+          commandJobId: string;
+          commandJob?: {
+            commandId: string;
+            shellCommand: string;
+            cronExpression: string;
+            command?: {
+              id: string;
+              name: string;
+            };
+          };
+        }>;
+
+      return data.map((event) => ({
+        id: event.id,
+        status: event.status,
+        startedAt: event.startedAt,
+        durationMs: event.durationMs,
+        stdout: event.stdout,
+        stderr: event.stderr,
+        commandJobId: event.commandJobId,
+        shellCommand: event.commandJob?.shellCommand ?? "",
+        cronExpression: event.commandJob?.cronExpression ?? "",
+        commandId: event.commandJob?.commandId ?? "",
+        command: event.commandJob?.command,
+      }));
     },
   });
 }

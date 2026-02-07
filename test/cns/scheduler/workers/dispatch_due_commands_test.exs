@@ -39,6 +39,15 @@ defmodule Cns.Scheduler.Workers.DispatchDueCommandsTest do
       worker: RunCommand,
       args: %{"command_id" => command.id, "environment_id" => disabled_environment.id}
     )
+
+    command_jobs =
+      Scheduler.list_command_jobs!(query: [filter: [command_id: command.id, cron_id: cron.id]])
+
+    assert Enum.count(command_jobs) == 1
+    assert Enum.at(command_jobs, 0).environment_id == enabled_environment.id
+    assert Enum.at(command_jobs, 0).oban_job_id
+    assert Enum.at(command_jobs, 0).shell_command == command.shell_command
+    assert Enum.at(command_jobs, 0).cron_expression == cron.crontab_expression
   end
 
   test "perform skips disabled commands" do

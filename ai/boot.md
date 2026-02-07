@@ -1,6 +1,4 @@
-Read AGENTS.md in the parent directory
-
-Read the following files in this directory:
+Always read the following files in this directory:
 
 - memories.md
 - dev.md
@@ -8,7 +6,9 @@ Read the following files in this directory:
 - ash.md
 - frontend.md
 
-Consult the other documents in this directory when you need them
+Read AGENTS.md in the parent directory when designing and coding
+
+Consult the other documents in this directory when you need them:
 
 - prd.md
 - architecture.md
