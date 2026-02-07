@@ -51,7 +51,7 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
 
     assert_enqueued(
       worker: Cns.Scheduler.Workers.RunCommand,
-      args: %{"command_id" => disabled_command.id}
+      args: %{"command_id" => disabled_command.id, "environment_id" => environment.id}
     )
   end
 
@@ -77,7 +77,7 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
 
     assert_enqueued(
       worker: Cns.Scheduler.Workers.RunCommand,
-      args: %{"command_id" => command.id}
+      args: %{"command_id" => command.id, "environment_id" => environment.id}
     )
   end
 
@@ -90,13 +90,31 @@ defmodule Cns.Scheduler.ApiConveniencesTest do
       attrs
       |> Enum.into(%{})
       |> Map.merge(%{
-        environment_id: environment_id,
         name: "#{name_prefix}-#{System.unique_integer([:positive])}",
         shell_command: "echo test",
-        cron_expression: "* * * * *",
         timeout_ms: 5_000
       })
 
-    Scheduler.create_command!(attrs)
+    command = Scheduler.create_command!(attrs)
+
+    cron =
+      Scheduler.create_cron!(%{
+        name: "api-cron-#{System.unique_integer([:positive])}",
+        crontab_expression: "* * * * *"
+      })
+
+    command_schedule = Scheduler.create_command_schedule!(%{command_id: command.id})
+
+    Scheduler.create_command_schedule_environment!(%{
+      command_schedule_id: command_schedule.id,
+      environment_id: environment_id
+    })
+
+    Scheduler.create_command_schedule_cron!(%{
+      command_schedule_id: command_schedule.id,
+      cron_id: cron.id
+    })
+
+    command
   end
 end

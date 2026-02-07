@@ -3,13 +3,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   buildCSRFHeaders,
   createCommand,
+  createCommandSchedule,
+  createCommandScheduleCron,
+  createCommandScheduleEnvironment,
+  createCron,
   createEnvironment,
   createVariable,
   listCommandExecutionEvents,
+  listCommandSchedules,
   listCommands,
+  listCrons,
   listEnvironments,
   listVariables,
   updateCommand,
+  updateCron,
   updateEnvironment,
   updateVariable,
 } from "@/lib/ash_rpc";
@@ -22,6 +29,13 @@ const rpcErrorMessage = (errors: Array<{ shortMessage: string; message: string }
 export type EnvironmentRow = {
   id: string;
   name: string;
+  enabled: boolean;
+};
+
+export type CronRow = {
+  id: string;
+  name: string;
+  crontabExpression: string;
 };
 
 export type VariableRow = {
@@ -31,6 +45,7 @@ export type VariableRow = {
   environment?: {
     id: string;
     name: string;
+    enabled: boolean;
   };
 };
 
@@ -38,14 +53,36 @@ export type CommandRow = {
   id: string;
   name: string;
   shellCommand: string;
-  cronExpression: string;
   enabled: boolean;
   timeoutMs: number;
-  environmentId: string;
-  environment?: {
+};
+
+export type CommandScheduleRow = {
+  id: string;
+  commandId: string;
+  command?: {
     id: string;
     name: string;
+    enabled: boolean;
   };
+  commandScheduleEnvironments: Array<{
+    id: string;
+    environmentId: string;
+    environment?: {
+      id: string;
+      name: string;
+      enabled: boolean;
+    };
+  }>;
+  commandScheduleCrons: Array<{
+    id: string;
+    cronId: string;
+    cron?: {
+      id: string;
+      name: string;
+      crontabExpression: string;
+    };
+  }>;
 };
 
 export type ExecutionEventRow = {
@@ -64,11 +101,24 @@ export type ExecutionEventRow = {
 
 export type CreateEnvironmentPayload = {
   name: string;
+  enabled: boolean;
 };
 
 export type UpdateEnvironmentPayload = {
   id: string;
+  name?: string;
+  enabled?: boolean;
+};
+
+export type CreateCronPayload = {
   name: string;
+  crontabExpression: string;
+};
+
+export type UpdateCronPayload = {
+  id: string;
+  name?: string;
+  crontabExpression?: string;
 };
 
 export type CreateVariablePayload = {
@@ -86,19 +136,22 @@ export type UpdateVariablePayload = {
 export type CreateCommandPayload = {
   name: string;
   shellCommand: string;
-  cronExpression: string;
   enabled: boolean;
   timeoutMs: number;
-  environmentId: string;
 };
 
 export type UpdateCommandPayload = {
   id: string;
   name?: string;
   shellCommand?: string;
-  cronExpression?: string;
   enabled?: boolean;
   timeoutMs?: number;
+};
+
+export type CreateCommandSchedulePayload = {
+  commandId: string;
+  environmentIds: string[];
+  cronIds: string[];
 };
 
 export function useEnvironmentsQuery() {
@@ -106,7 +159,7 @@ export function useEnvironmentsQuery() {
     queryKey: ["scheduler", "environments"],
     queryFn: async () => {
       const result = await listEnvironments({
-        fields: ["id", "name"],
+        fields: ["id", "name", "enabled"],
         sort: "name",
         headers: rpcHeaders(),
       });
@@ -120,12 +173,31 @@ export function useEnvironmentsQuery() {
   });
 }
 
+export function useCronsQuery() {
+  return useQuery({
+    queryKey: ["scheduler", "crons"],
+    queryFn: async () => {
+      const result = await listCrons({
+        fields: ["id", "name", "crontabExpression"],
+        sort: "name",
+        headers: rpcHeaders(),
+      });
+
+      if (!result.success) {
+        throw new Error(rpcErrorMessage(result.errors));
+      }
+
+      return result.data as CronRow[];
+    },
+  });
+}
+
 export function useVariablesQuery() {
   return useQuery({
     queryKey: ["scheduler", "variables"],
     queryFn: async () => {
       const result = await listVariables({
-        fields: ["id", "name", "environmentId", { environment: ["id", "name"] }],
+        fields: ["id", "name", "environmentId", { environment: ["id", "name", "enabled"] }],
         sort: "name",
         headers: rpcHeaders(),
       });
@@ -144,16 +216,7 @@ export function useCommandsQuery() {
     queryKey: ["scheduler", "commands"],
     queryFn: async () => {
       const result = await listCommands({
-        fields: [
-          "id",
-          "name",
-          "shellCommand",
-          "cronExpression",
-          "enabled",
-          "timeoutMs",
-          "environmentId",
-          { environment: ["id", "name"] },
-        ],
+        fields: ["id", "name", "shellCommand", "enabled", "timeoutMs"],
         sort: "name",
         headers: rpcHeaders(),
       });
@@ -163,6 +226,43 @@ export function useCommandsQuery() {
       }
 
       return result.data as CommandRow[];
+    },
+  });
+}
+
+export function useCommandSchedulesQuery() {
+  return useQuery({
+    queryKey: ["scheduler", "command-schedules"],
+    queryFn: async () => {
+      const result = await listCommandSchedules({
+        fields: [
+          "id",
+          "commandId",
+          { command: ["id", "name", "enabled"] },
+          {
+            commandScheduleEnvironments: [
+              "id",
+              "environmentId",
+              { environment: ["id", "name", "enabled"] },
+            ],
+          },
+          {
+            commandScheduleCrons: [
+              "id",
+              "cronId",
+              { cron: ["id", "name", "crontabExpression"] },
+            ],
+          },
+        ],
+        sort: "id",
+        headers: rpcHeaders(),
+      });
+
+      if (!result.success) {
+        throw new Error(rpcErrorMessage(result.errors));
+      }
+
+      return result.data as CommandScheduleRow[];
     },
   });
 }
@@ -204,7 +304,7 @@ export function useCreateEnvironmentMutation() {
     mutationFn: async (input: CreateEnvironmentPayload) => {
       const result = await createEnvironment({
         input,
-        fields: ["id", "name"],
+        fields: ["id", "name", "enabled"],
         headers: rpcHeaders(),
       });
 
@@ -224,11 +324,58 @@ export function useUpdateEnvironmentMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, name }: UpdateEnvironmentPayload) => {
+    mutationFn: async ({ id, ...input }: UpdateEnvironmentPayload) => {
       const result = await updateEnvironment({
         identity: id,
-        input: { name },
-        fields: ["id", "name"],
+        input,
+        fields: ["id", "name", "enabled"],
+        headers: rpcHeaders(),
+      });
+
+      if (!result.success) {
+        throw new Error(rpcErrorMessage(result.errors));
+      }
+
+      return result.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["scheduler"] });
+    },
+  });
+}
+
+export function useCreateCronMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: CreateCronPayload) => {
+      const result = await createCron({
+        input,
+        fields: ["id", "name", "crontabExpression"],
+        headers: rpcHeaders(),
+      });
+
+      if (!result.success) {
+        throw new Error(rpcErrorMessage(result.errors));
+      }
+
+      return result.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["scheduler"] });
+    },
+  });
+}
+
+export function useUpdateCronMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...input }: UpdateCronPayload) => {
+      const result = await updateCron({
+        identity: id,
+        input,
+        fields: ["id", "name", "crontabExpression"],
         headers: rpcHeaders(),
       });
 
@@ -298,7 +445,7 @@ export function useCreateCommandMutation() {
     mutationFn: async (input: CreateCommandPayload) => {
       const result = await createCommand({
         input,
-        fields: ["id", "name", "cronExpression", "enabled", "timeoutMs", "environmentId"],
+        fields: ["id", "name", "shellCommand", "enabled", "timeoutMs"],
         headers: rpcHeaders(),
       });
 
@@ -322,7 +469,7 @@ export function useUpdateCommandMutation() {
       const result = await updateCommand({
         identity: id,
         input,
-        fields: ["id", "name", "cronExpression", "enabled", "timeoutMs", "environmentId"],
+        fields: ["id", "name", "shellCommand", "enabled", "timeoutMs"],
         headers: rpcHeaders(),
       });
 
@@ -331,6 +478,63 @@ export function useUpdateCommandMutation() {
       }
 
       return result.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["scheduler"] });
+    },
+  });
+}
+
+export function useCreateCommandScheduleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ commandId, environmentIds, cronIds }: CreateCommandSchedulePayload) => {
+      const scheduleResult = await createCommandSchedule({
+        input: { commandId },
+        fields: ["id", "commandId"],
+        headers: rpcHeaders(),
+      });
+
+      if (!scheduleResult.success) {
+        throw new Error(rpcErrorMessage(scheduleResult.errors));
+      }
+
+      const schedule = scheduleResult.data;
+      const uniqueEnvironmentIds = [...new Set(environmentIds)];
+      const uniqueCronIds = [...new Set(cronIds)];
+
+      const environmentResults = await Promise.all(
+        uniqueEnvironmentIds.map((environmentId) =>
+          createCommandScheduleEnvironment({
+            input: { commandScheduleId: schedule.id, environmentId },
+            fields: ["id", "commandScheduleId", "environmentId"],
+            headers: rpcHeaders(),
+          }),
+        ),
+      );
+
+      const environmentError = environmentResults.find((result) => !result.success);
+      if (environmentError && !environmentError.success) {
+        throw new Error(rpcErrorMessage(environmentError.errors));
+      }
+
+      const cronResults = await Promise.all(
+        uniqueCronIds.map((cronId) =>
+          createCommandScheduleCron({
+            input: { commandScheduleId: schedule.id, cronId },
+            fields: ["id", "commandScheduleId", "cronId"],
+            headers: rpcHeaders(),
+          }),
+        ),
+      );
+
+      const cronError = cronResults.find((result) => !result.success);
+      if (cronError && !cronError.success) {
+        throw new Error(rpcErrorMessage(cronError.errors));
+      }
+
+      return schedule;
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["scheduler"] });

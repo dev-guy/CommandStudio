@@ -6,6 +6,7 @@ defmodule Cns.Scheduler.Jobs do
 
   @type enqueue_opt ::
           {:force?, boolean()}
+          | {:environment_id, Ecto.UUID.t()}
           | {:delay_seconds, non_neg_integer()}
           | {:max_attempts, pos_integer()}
           | {:priority, non_neg_integer()}
@@ -13,19 +14,79 @@ defmodule Cns.Scheduler.Jobs do
   @spec enqueue_command(Ecto.UUID.t(), keyword(enqueue_opt())) ::
           {:ok, Oban.Job.t()} | {:error, Ecto.Changeset.t()} | {:error, term()}
   def enqueue_command(command_id, opts \\ []) do
-    with :ok <- validate_enabled(command_id, Keyword.get(opts, :force?, false)) do
-      %{command_id: command_id}
+    with {:ok, environment_id} <- resolve_environment_id(command_id, opts),
+         :ok <-
+           validate_enabled(command_id, environment_id, Keyword.get(opts, :force?, false)) do
+      %{command_id: command_id, environment_id: environment_id}
       |> RunCommand.new(build_job_opts(opts))
       |> Oban.insert()
     end
   end
 
-  defp validate_enabled(_command_id, true), do: :ok
+  defp resolve_environment_id(command_id, opts) do
+    case Keyword.get(opts, :environment_id) do
+      environment_id when is_binary(environment_id) ->
+        {:ok, environment_id}
 
-  defp validate_enabled(command_id, false) do
-    case Scheduler.get_command(command_id) do
-      {:ok, %{enabled: true}} -> :ok
-      {:ok, %{enabled: false}} -> {:error, "command is disabled"}
+      _ ->
+        resolve_environment_from_schedules(
+          command_id: command_id,
+          force?: Keyword.get(opts, :force?, false)
+        )
+    end
+  end
+
+  defp resolve_environment_from_schedules(command_id: command_id, force?: force?) do
+    with {:ok, schedules} <-
+           Scheduler.list_command_schedules(
+             query: [filter: [command_id: command_id]],
+             load: [command_schedule_environments: [environment: [:id, :enabled]]]
+           ) do
+      environments =
+        schedules
+        |> Enum.flat_map(fn schedule ->
+          schedule.command_schedule_environments
+          |> Enum.map(& &1.environment)
+          |> Enum.reject(&is_nil/1)
+        end)
+        |> Enum.uniq_by(& &1.id)
+
+      environment =
+        if force? do
+          List.first(environments)
+        else
+          Enum.find(environments, & &1.enabled)
+        end
+
+      case environment do
+        nil when environments == [] ->
+          {:error, "command has no scheduled environments"}
+
+        nil ->
+          {:error, "no enabled environment is scheduled for command"}
+
+        environment ->
+          {:ok, environment.id}
+      end
+    end
+  end
+
+  defp validate_enabled(_command_id, _environment_id, true), do: :ok
+
+  defp validate_enabled(command_id, environment_id, false) do
+    with {:ok, command} <- Scheduler.get_command(command_id),
+         {:ok, environment} <- Scheduler.get_environment(environment_id) do
+      cond do
+        not command.enabled ->
+          {:error, "command is disabled"}
+
+        not environment.enabled ->
+          {:error, "environment is disabled"}
+
+        true ->
+          :ok
+      end
+    else
       {:error, reason} -> {:error, reason}
     end
   end

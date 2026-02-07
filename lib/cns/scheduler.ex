@@ -15,6 +15,32 @@ defmodule Cns.Scheduler do
       rpc_action :destroy_environment, :destroy
     end
 
+    resource Cns.Scheduler.Cron do
+      rpc_action :list_crons, :read
+      rpc_action :create_cron, :create
+      rpc_action :update_cron, :update
+      rpc_action :destroy_cron, :destroy
+    end
+
+    resource Cns.Scheduler.CommandSchedule do
+      rpc_action :list_command_schedules, :read
+      rpc_action :create_command_schedule, :create
+      rpc_action :update_command_schedule, :update
+      rpc_action :destroy_command_schedule, :destroy
+    end
+
+    resource Cns.Scheduler.CommandScheduleEnvironment do
+      rpc_action :list_command_schedule_environments, :read
+      rpc_action :create_command_schedule_environment, :create
+      rpc_action :destroy_command_schedule_environment, :destroy
+    end
+
+    resource Cns.Scheduler.CommandScheduleCron do
+      rpc_action :list_command_schedule_crons, :read
+      rpc_action :create_command_schedule_cron, :create
+      rpc_action :destroy_command_schedule_cron, :destroy
+    end
+
     resource Cns.Scheduler.Variable do
       rpc_action :list_variables, :read
       rpc_action :create_variable, :create
@@ -46,8 +72,39 @@ defmodule Cns.Scheduler do
       define :update_environment, action: :update
       define :destroy_environment, action: :destroy
       define :list_environments, action: :read
+      define :list_enabled_environments, action: :enabled
       define :get_environment, action: :read, get_by: [:id]
       define :get_environment_by_name, action: :by_name, args: [:name], get?: true
+    end
+
+    resource Cns.Scheduler.Cron do
+      define :create_cron, action: :create
+      define :update_cron, action: :update
+      define :destroy_cron, action: :destroy
+      define :list_crons, action: :read
+      define :get_cron, action: :read, get_by: [:id]
+    end
+
+    resource Cns.Scheduler.CommandSchedule do
+      define :create_command_schedule, action: :create
+      define :update_command_schedule, action: :update
+      define :destroy_command_schedule, action: :destroy
+      define :list_command_schedules, action: :read
+      define :get_command_schedule, action: :read, get_by: [:id]
+    end
+
+    resource Cns.Scheduler.CommandScheduleEnvironment do
+      define :create_command_schedule_environment, action: :create
+      define :destroy_command_schedule_environment, action: :destroy
+      define :list_command_schedule_environments, action: :read
+      define :get_command_schedule_environment, action: :read, get_by: [:id]
+    end
+
+    resource Cns.Scheduler.CommandScheduleCron do
+      define :create_command_schedule_cron, action: :create
+      define :destroy_command_schedule_cron, action: :destroy
+      define :list_command_schedule_crons, action: :read
+      define :get_command_schedule_cron, action: :read, get_by: [:id]
     end
 
     resource Cns.Scheduler.Variable do

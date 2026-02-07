@@ -11,20 +11,108 @@ export type UtcDateTimeUsec = string;
 // Environment Schema
 export type EnvironmentResourceSchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "name";
+  __primitiveFields: "id" | "name" | "enabled";
   id: UUID;
   name: string;
+  enabled: boolean;
   variables: { __type: "Relationship"; __array: true; __resource: VariableResourceSchema; };
-  commands: { __type: "Relationship"; __array: true; __resource: CommandResourceSchema; };
+  commandScheduleEnvironments: { __type: "Relationship"; __array: true; __resource: CommandScheduleEnvironmentResourceSchema; };
 };
 
 
 
 export type EnvironmentAttributesOnlySchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "name";
+  __primitiveFields: "id" | "name" | "enabled";
   id: UUID;
   name: string;
+  enabled: boolean;
+};
+
+
+// Cron Schema
+export type CronResourceSchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "name" | "crontabExpression";
+  id: UUID;
+  name: string;
+  crontabExpression: string;
+  commandScheduleCrons: { __type: "Relationship"; __array: true; __resource: CommandScheduleCronResourceSchema; };
+};
+
+
+
+export type CronAttributesOnlySchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "name" | "crontabExpression";
+  id: UUID;
+  name: string;
+  crontabExpression: string;
+};
+
+
+// CommandSchedule Schema
+export type CommandScheduleResourceSchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "commandId";
+  id: UUID;
+  commandId: UUID;
+  command: { __type: "Relationship"; __resource: CommandResourceSchema; };
+  commandScheduleEnvironments: { __type: "Relationship"; __array: true; __resource: CommandScheduleEnvironmentResourceSchema; };
+  commandScheduleCrons: { __type: "Relationship"; __array: true; __resource: CommandScheduleCronResourceSchema; };
+};
+
+
+
+export type CommandScheduleAttributesOnlySchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "commandId";
+  id: UUID;
+  commandId: UUID;
+};
+
+
+// CommandScheduleEnvironment Schema
+export type CommandScheduleEnvironmentResourceSchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "commandScheduleId" | "environmentId";
+  id: UUID;
+  commandScheduleId: UUID;
+  environmentId: UUID;
+  commandSchedule: { __type: "Relationship"; __resource: CommandScheduleResourceSchema; };
+  environment: { __type: "Relationship"; __resource: EnvironmentResourceSchema; };
+};
+
+
+
+export type CommandScheduleEnvironmentAttributesOnlySchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "commandScheduleId" | "environmentId";
+  id: UUID;
+  commandScheduleId: UUID;
+  environmentId: UUID;
+};
+
+
+// CommandScheduleCron Schema
+export type CommandScheduleCronResourceSchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "commandScheduleId" | "cronId";
+  id: UUID;
+  commandScheduleId: UUID;
+  cronId: UUID;
+  commandSchedule: { __type: "Relationship"; __resource: CommandScheduleResourceSchema; };
+  cron: { __type: "Relationship"; __resource: CronResourceSchema; };
+};
+
+
+
+export type CommandScheduleCronAttributesOnlySchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "commandScheduleId" | "cronId";
+  id: UUID;
+  commandScheduleId: UUID;
+  cronId: UUID;
 };
 
 
@@ -53,30 +141,26 @@ export type VariableAttributesOnlySchema = {
 // Command Schema
 export type CommandResourceSchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "name" | "shellCommand" | "cronExpression" | "enabled" | "timeoutMs" | "environmentId";
+  __primitiveFields: "id" | "name" | "shellCommand" | "enabled" | "timeoutMs";
   id: UUID;
   name: string;
   shellCommand: string;
-  cronExpression: string;
   enabled: boolean;
   timeoutMs: number;
-  environmentId: UUID;
-  environment: { __type: "Relationship"; __resource: EnvironmentResourceSchema; };
   executionEvents: { __type: "Relationship"; __array: true; __resource: CommandExecutionEventResourceSchema; };
+  commandSchedules: { __type: "Relationship"; __array: true; __resource: CommandScheduleResourceSchema; };
 };
 
 
 
 export type CommandAttributesOnlySchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "name" | "shellCommand" | "cronExpression" | "enabled" | "timeoutMs" | "environmentId";
+  __primitiveFields: "id" | "name" | "shellCommand" | "enabled" | "timeoutMs";
   id: UUID;
   name: string;
   shellCommand: string;
-  cronExpression: string;
   enabled: boolean;
   timeoutMs: number;
-  environmentId: UUID;
 };
 
 
@@ -130,10 +214,125 @@ export type EnvironmentFilterInput = {
     in?: Array<string>;
   };
 
+  enabled?: {
+    eq?: boolean;
+    notEq?: boolean;
+  };
+
 
   variables?: VariableFilterInput;
 
-  commands?: CommandFilterInput;
+  commandScheduleEnvironments?: CommandScheduleEnvironmentFilterInput;
+
+};
+export type CronFilterInput = {
+  and?: Array<CronFilterInput>;
+  or?: Array<CronFilterInput>;
+  not?: Array<CronFilterInput>;
+
+  id?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+  name?: {
+    eq?: string;
+    notEq?: string;
+    in?: Array<string>;
+  };
+
+  crontabExpression?: {
+    eq?: string;
+    notEq?: string;
+    in?: Array<string>;
+  };
+
+
+  commandScheduleCrons?: CommandScheduleCronFilterInput;
+
+};
+export type CommandScheduleFilterInput = {
+  and?: Array<CommandScheduleFilterInput>;
+  or?: Array<CommandScheduleFilterInput>;
+  not?: Array<CommandScheduleFilterInput>;
+
+  id?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+  commandId?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+
+  command?: CommandFilterInput;
+
+  commandScheduleEnvironments?: CommandScheduleEnvironmentFilterInput;
+
+  commandScheduleCrons?: CommandScheduleCronFilterInput;
+
+};
+export type CommandScheduleEnvironmentFilterInput = {
+  and?: Array<CommandScheduleEnvironmentFilterInput>;
+  or?: Array<CommandScheduleEnvironmentFilterInput>;
+  not?: Array<CommandScheduleEnvironmentFilterInput>;
+
+  id?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+  commandScheduleId?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+  environmentId?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+
+  commandSchedule?: CommandScheduleFilterInput;
+
+  environment?: EnvironmentFilterInput;
+
+};
+export type CommandScheduleCronFilterInput = {
+  and?: Array<CommandScheduleCronFilterInput>;
+  or?: Array<CommandScheduleCronFilterInput>;
+  not?: Array<CommandScheduleCronFilterInput>;
+
+  id?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+  commandScheduleId?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+  cronId?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+
+  commandSchedule?: CommandScheduleFilterInput;
+
+  cron?: CronFilterInput;
 
 };
 export type VariableFilterInput = {
@@ -192,12 +391,6 @@ export type CommandFilterInput = {
     in?: Array<string>;
   };
 
-  cronExpression?: {
-    eq?: string;
-    notEq?: string;
-    in?: Array<string>;
-  };
-
   enabled?: {
     eq?: boolean;
     notEq?: boolean;
@@ -213,16 +406,10 @@ export type CommandFilterInput = {
     in?: Array<number>;
   };
 
-  environmentId?: {
-    eq?: UUID;
-    notEq?: UUID;
-    in?: Array<UUID>;
-  };
-
-
-  environment?: EnvironmentFilterInput;
 
   executionEvents?: CommandExecutionEventFilterInput;
+
+  commandSchedules?: CommandScheduleFilterInput;
 
 };
 export type CommandExecutionEventFilterInput = {
@@ -1019,6 +1206,7 @@ export async function validateListEnvironments(
 
 export type CreateEnvironmentInput = {
   name: string;
+  enabled?: boolean;
 };
 
 export type CreateEnvironmentFields = UnifiedFieldSelection<EnvironmentResourceSchema>[];
@@ -1091,6 +1279,7 @@ export async function validateCreateEnvironment(
 
 export type UpdateEnvironmentInput = {
   name?: string;
+  enabled?: boolean;
 };
 
 export type UpdateEnvironmentFields = UnifiedFieldSelection<EnvironmentResourceSchema>[];
@@ -1215,6 +1404,1098 @@ export async function validateDestroyEnvironment(
 ): Promise<ValidationResult> {
   const payload = {
     action: "destroy_environment",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type ListCronsFields = UnifiedFieldSelection<CronResourceSchema>[];
+
+
+export type InferListCronsResult<
+  Fields extends ListCronsFields | undefined,
+  Page extends ListCronsConfig["page"] = undefined
+> = ConditionalPaginatedResultMixed<Page, Array<InferResult<CronResourceSchema, Fields>>, {
+  results: Array<InferResult<CronResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  offset: number;
+  count?: number | null;
+  type: "offset";
+}, {
+  results: Array<InferResult<CronResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  after: string | null;
+  before: string | null;
+  previousPage: string;
+  nextPage: string;
+  count?: number | null;
+  type: "keyset";
+}>;
+
+export type ListCronsConfig = {
+  tenant?: string;
+  fields: ListCronsFields;
+  filter?: CronFilterInput;
+  sort?: string;
+  page?: (
+    {
+      limit?: number;
+      offset?: number;
+      count?: boolean;
+    } | {
+      limit?: number;
+      after?: string;
+      before?: string;
+    }
+  );
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+};
+
+export type ListCronsResult<Fields extends ListCronsFields, Page extends ListCronsConfig["page"] = undefined> = | { success: true; data: InferListCronsResult<Fields, Page>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Read Cron records
+ *
+ * @ashActionType :read
+ */
+export async function listCrons<Fields extends ListCronsFields, Config extends ListCronsConfig = ListCronsConfig>(
+  config: Config & { fields: Fields }
+): Promise<ListCronsResult<Fields, Config["page"]>> {
+  const payload = {
+    action: "list_crons",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    ...(config.fields !== undefined && { fields: config.fields }),
+    ...(config.filter && { filter: config.filter }),
+    ...(config.sort && { sort: config.sort }),
+    ...(config.page && { page: config.page })
+  };
+
+  return executeActionRpcRequest<ListCronsResult<Fields, Config["page"]>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Read Cron records
+ *
+ * @ashActionType :read
+ * @validation true
+ */
+export async function validateListCrons(
+  config: {
+  tenant?: string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "list_crons",
+    ...(config.tenant !== undefined && { tenant: config.tenant })
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type CreateCronInput = {
+  name: string;
+  crontabExpression: string;
+};
+
+export type CreateCronFields = UnifiedFieldSelection<CronResourceSchema>[];
+
+export type InferCreateCronResult<
+  Fields extends CreateCronFields | undefined,
+> = InferResult<CronResourceSchema, Fields>;
+
+export type CreateCronResult<Fields extends CreateCronFields | undefined = undefined> = | { success: true; data: InferCreateCronResult<Fields>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Create a new Cron
+ *
+ * @ashActionType :create
+ */
+export async function createCron<Fields extends CreateCronFields | undefined = undefined>(
+  config: {
+  tenant?: string;
+  input: CreateCronInput;
+  fields?: Fields;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<CreateCronResult<Fields extends undefined ? [] : Fields>> {
+  const payload = {
+    action: "create_cron",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input,
+    ...(config.fields !== undefined && { fields: config.fields })
+  };
+
+  return executeActionRpcRequest<CreateCronResult<Fields extends undefined ? [] : Fields>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Create a new Cron
+ *
+ * @ashActionType :create
+ * @validation true
+ */
+export async function validateCreateCron(
+  config: {
+  tenant?: string;
+  input: CreateCronInput;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "create_cron",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type UpdateCronInput = {
+  name?: string;
+  crontabExpression?: string;
+};
+
+export type UpdateCronFields = UnifiedFieldSelection<CronResourceSchema>[];
+
+export type InferUpdateCronResult<
+  Fields extends UpdateCronFields | undefined,
+> = InferResult<CronResourceSchema, Fields>;
+
+export type UpdateCronResult<Fields extends UpdateCronFields | undefined = undefined> = | { success: true; data: InferUpdateCronResult<Fields>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Update an existing Cron
+ *
+ * @ashActionType :update
+ */
+export async function updateCron<Fields extends UpdateCronFields | undefined = undefined>(
+  config: {
+  tenant?: string;
+  identity: UUID;
+  input: UpdateCronInput;
+  fields?: Fields;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<UpdateCronResult<Fields extends undefined ? [] : Fields>> {
+  const payload = {
+    action: "update_cron",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity,
+    input: config.input,
+    ...(config.fields !== undefined && { fields: config.fields })
+  };
+
+  return executeActionRpcRequest<UpdateCronResult<Fields extends undefined ? [] : Fields>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Update an existing Cron
+ *
+ * @ashActionType :update
+ * @validation true
+ */
+export async function validateUpdateCron(
+  config: {
+  tenant?: string;
+  identity: UUID | string;
+  input: UpdateCronInput;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "update_cron",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity,
+    input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+
+export type DestroyCronResult = | { success: true; data: {}; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Delete a Cron
+ *
+ * @ashActionType :destroy
+ */
+export async function destroyCron(
+  config: {
+  tenant?: string;
+  identity: UUID;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<DestroyCronResult> {
+  const payload = {
+    action: "destroy_cron",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeActionRpcRequest<DestroyCronResult>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Delete a Cron
+ *
+ * @ashActionType :destroy
+ * @validation true
+ */
+export async function validateDestroyCron(
+  config: {
+  tenant?: string;
+  identity: UUID | string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "destroy_cron",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type ListCommandSchedulesFields = UnifiedFieldSelection<CommandScheduleResourceSchema>[];
+
+
+export type InferListCommandSchedulesResult<
+  Fields extends ListCommandSchedulesFields | undefined,
+  Page extends ListCommandSchedulesConfig["page"] = undefined
+> = ConditionalPaginatedResultMixed<Page, Array<InferResult<CommandScheduleResourceSchema, Fields>>, {
+  results: Array<InferResult<CommandScheduleResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  offset: number;
+  count?: number | null;
+  type: "offset";
+}, {
+  results: Array<InferResult<CommandScheduleResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  after: string | null;
+  before: string | null;
+  previousPage: string;
+  nextPage: string;
+  count?: number | null;
+  type: "keyset";
+}>;
+
+export type ListCommandSchedulesConfig = {
+  tenant?: string;
+  fields: ListCommandSchedulesFields;
+  filter?: CommandScheduleFilterInput;
+  sort?: string;
+  page?: (
+    {
+      limit?: number;
+      offset?: number;
+      count?: boolean;
+    } | {
+      limit?: number;
+      after?: string;
+      before?: string;
+    }
+  );
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+};
+
+export type ListCommandSchedulesResult<Fields extends ListCommandSchedulesFields, Page extends ListCommandSchedulesConfig["page"] = undefined> = | { success: true; data: InferListCommandSchedulesResult<Fields, Page>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Read CommandSchedule records
+ *
+ * @ashActionType :read
+ */
+export async function listCommandSchedules<Fields extends ListCommandSchedulesFields, Config extends ListCommandSchedulesConfig = ListCommandSchedulesConfig>(
+  config: Config & { fields: Fields }
+): Promise<ListCommandSchedulesResult<Fields, Config["page"]>> {
+  const payload = {
+    action: "list_command_schedules",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    ...(config.fields !== undefined && { fields: config.fields }),
+    ...(config.filter && { filter: config.filter }),
+    ...(config.sort && { sort: config.sort }),
+    ...(config.page && { page: config.page })
+  };
+
+  return executeActionRpcRequest<ListCommandSchedulesResult<Fields, Config["page"]>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Read CommandSchedule records
+ *
+ * @ashActionType :read
+ * @validation true
+ */
+export async function validateListCommandSchedules(
+  config: {
+  tenant?: string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "list_command_schedules",
+    ...(config.tenant !== undefined && { tenant: config.tenant })
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type CreateCommandScheduleInput = {
+  commandId: UUID;
+};
+
+export type CreateCommandScheduleFields = UnifiedFieldSelection<CommandScheduleResourceSchema>[];
+
+export type InferCreateCommandScheduleResult<
+  Fields extends CreateCommandScheduleFields | undefined,
+> = InferResult<CommandScheduleResourceSchema, Fields>;
+
+export type CreateCommandScheduleResult<Fields extends CreateCommandScheduleFields | undefined = undefined> = | { success: true; data: InferCreateCommandScheduleResult<Fields>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Create a new CommandSchedule
+ *
+ * @ashActionType :create
+ */
+export async function createCommandSchedule<Fields extends CreateCommandScheduleFields | undefined = undefined>(
+  config: {
+  tenant?: string;
+  input: CreateCommandScheduleInput;
+  fields?: Fields;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<CreateCommandScheduleResult<Fields extends undefined ? [] : Fields>> {
+  const payload = {
+    action: "create_command_schedule",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input,
+    ...(config.fields !== undefined && { fields: config.fields })
+  };
+
+  return executeActionRpcRequest<CreateCommandScheduleResult<Fields extends undefined ? [] : Fields>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Create a new CommandSchedule
+ *
+ * @ashActionType :create
+ * @validation true
+ */
+export async function validateCreateCommandSchedule(
+  config: {
+  tenant?: string;
+  input: CreateCommandScheduleInput;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "create_command_schedule",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type UpdateCommandScheduleInput = {
+  commandId?: UUID;
+};
+
+export type UpdateCommandScheduleFields = UnifiedFieldSelection<CommandScheduleResourceSchema>[];
+
+export type InferUpdateCommandScheduleResult<
+  Fields extends UpdateCommandScheduleFields | undefined,
+> = InferResult<CommandScheduleResourceSchema, Fields>;
+
+export type UpdateCommandScheduleResult<Fields extends UpdateCommandScheduleFields | undefined = undefined> = | { success: true; data: InferUpdateCommandScheduleResult<Fields>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Update an existing CommandSchedule
+ *
+ * @ashActionType :update
+ */
+export async function updateCommandSchedule<Fields extends UpdateCommandScheduleFields | undefined = undefined>(
+  config: {
+  tenant?: string;
+  identity: UUID;
+  input: UpdateCommandScheduleInput;
+  fields?: Fields;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<UpdateCommandScheduleResult<Fields extends undefined ? [] : Fields>> {
+  const payload = {
+    action: "update_command_schedule",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity,
+    input: config.input,
+    ...(config.fields !== undefined && { fields: config.fields })
+  };
+
+  return executeActionRpcRequest<UpdateCommandScheduleResult<Fields extends undefined ? [] : Fields>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Update an existing CommandSchedule
+ *
+ * @ashActionType :update
+ * @validation true
+ */
+export async function validateUpdateCommandSchedule(
+  config: {
+  tenant?: string;
+  identity: UUID | string;
+  input: UpdateCommandScheduleInput;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "update_command_schedule",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity,
+    input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+
+export type DestroyCommandScheduleResult = | { success: true; data: {}; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Delete a CommandSchedule
+ *
+ * @ashActionType :destroy
+ */
+export async function destroyCommandSchedule(
+  config: {
+  tenant?: string;
+  identity: UUID;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<DestroyCommandScheduleResult> {
+  const payload = {
+    action: "destroy_command_schedule",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeActionRpcRequest<DestroyCommandScheduleResult>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Delete a CommandSchedule
+ *
+ * @ashActionType :destroy
+ * @validation true
+ */
+export async function validateDestroyCommandSchedule(
+  config: {
+  tenant?: string;
+  identity: UUID | string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "destroy_command_schedule",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type ListCommandScheduleEnvironmentsFields = UnifiedFieldSelection<CommandScheduleEnvironmentResourceSchema>[];
+
+
+export type InferListCommandScheduleEnvironmentsResult<
+  Fields extends ListCommandScheduleEnvironmentsFields | undefined,
+  Page extends ListCommandScheduleEnvironmentsConfig["page"] = undefined
+> = ConditionalPaginatedResultMixed<Page, Array<InferResult<CommandScheduleEnvironmentResourceSchema, Fields>>, {
+  results: Array<InferResult<CommandScheduleEnvironmentResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  offset: number;
+  count?: number | null;
+  type: "offset";
+}, {
+  results: Array<InferResult<CommandScheduleEnvironmentResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  after: string | null;
+  before: string | null;
+  previousPage: string;
+  nextPage: string;
+  count?: number | null;
+  type: "keyset";
+}>;
+
+export type ListCommandScheduleEnvironmentsConfig = {
+  tenant?: string;
+  fields: ListCommandScheduleEnvironmentsFields;
+  filter?: CommandScheduleEnvironmentFilterInput;
+  sort?: string;
+  page?: (
+    {
+      limit?: number;
+      offset?: number;
+      count?: boolean;
+    } | {
+      limit?: number;
+      after?: string;
+      before?: string;
+    }
+  );
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+};
+
+export type ListCommandScheduleEnvironmentsResult<Fields extends ListCommandScheduleEnvironmentsFields, Page extends ListCommandScheduleEnvironmentsConfig["page"] = undefined> = | { success: true; data: InferListCommandScheduleEnvironmentsResult<Fields, Page>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Read CommandScheduleEnvironment records
+ *
+ * @ashActionType :read
+ */
+export async function listCommandScheduleEnvironments<Fields extends ListCommandScheduleEnvironmentsFields, Config extends ListCommandScheduleEnvironmentsConfig = ListCommandScheduleEnvironmentsConfig>(
+  config: Config & { fields: Fields }
+): Promise<ListCommandScheduleEnvironmentsResult<Fields, Config["page"]>> {
+  const payload = {
+    action: "list_command_schedule_environments",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    ...(config.fields !== undefined && { fields: config.fields }),
+    ...(config.filter && { filter: config.filter }),
+    ...(config.sort && { sort: config.sort }),
+    ...(config.page && { page: config.page })
+  };
+
+  return executeActionRpcRequest<ListCommandScheduleEnvironmentsResult<Fields, Config["page"]>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Read CommandScheduleEnvironment records
+ *
+ * @ashActionType :read
+ * @validation true
+ */
+export async function validateListCommandScheduleEnvironments(
+  config: {
+  tenant?: string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "list_command_schedule_environments",
+    ...(config.tenant !== undefined && { tenant: config.tenant })
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type CreateCommandScheduleEnvironmentInput = {
+  commandScheduleId: UUID;
+  environmentId: UUID;
+};
+
+export type CreateCommandScheduleEnvironmentFields = UnifiedFieldSelection<CommandScheduleEnvironmentResourceSchema>[];
+
+export type InferCreateCommandScheduleEnvironmentResult<
+  Fields extends CreateCommandScheduleEnvironmentFields | undefined,
+> = InferResult<CommandScheduleEnvironmentResourceSchema, Fields>;
+
+export type CreateCommandScheduleEnvironmentResult<Fields extends CreateCommandScheduleEnvironmentFields | undefined = undefined> = | { success: true; data: InferCreateCommandScheduleEnvironmentResult<Fields>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Create a new CommandScheduleEnvironment
+ *
+ * @ashActionType :create
+ */
+export async function createCommandScheduleEnvironment<Fields extends CreateCommandScheduleEnvironmentFields | undefined = undefined>(
+  config: {
+  tenant?: string;
+  input: CreateCommandScheduleEnvironmentInput;
+  fields?: Fields;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<CreateCommandScheduleEnvironmentResult<Fields extends undefined ? [] : Fields>> {
+  const payload = {
+    action: "create_command_schedule_environment",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input,
+    ...(config.fields !== undefined && { fields: config.fields })
+  };
+
+  return executeActionRpcRequest<CreateCommandScheduleEnvironmentResult<Fields extends undefined ? [] : Fields>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Create a new CommandScheduleEnvironment
+ *
+ * @ashActionType :create
+ * @validation true
+ */
+export async function validateCreateCommandScheduleEnvironment(
+  config: {
+  tenant?: string;
+  input: CreateCommandScheduleEnvironmentInput;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "create_command_schedule_environment",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+
+export type DestroyCommandScheduleEnvironmentResult = | { success: true; data: {}; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Delete a CommandScheduleEnvironment
+ *
+ * @ashActionType :destroy
+ */
+export async function destroyCommandScheduleEnvironment(
+  config: {
+  tenant?: string;
+  identity: UUID;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<DestroyCommandScheduleEnvironmentResult> {
+  const payload = {
+    action: "destroy_command_schedule_environment",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeActionRpcRequest<DestroyCommandScheduleEnvironmentResult>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Delete a CommandScheduleEnvironment
+ *
+ * @ashActionType :destroy
+ * @validation true
+ */
+export async function validateDestroyCommandScheduleEnvironment(
+  config: {
+  tenant?: string;
+  identity: UUID | string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "destroy_command_schedule_environment",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type ListCommandScheduleCronsFields = UnifiedFieldSelection<CommandScheduleCronResourceSchema>[];
+
+
+export type InferListCommandScheduleCronsResult<
+  Fields extends ListCommandScheduleCronsFields | undefined,
+  Page extends ListCommandScheduleCronsConfig["page"] = undefined
+> = ConditionalPaginatedResultMixed<Page, Array<InferResult<CommandScheduleCronResourceSchema, Fields>>, {
+  results: Array<InferResult<CommandScheduleCronResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  offset: number;
+  count?: number | null;
+  type: "offset";
+}, {
+  results: Array<InferResult<CommandScheduleCronResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  after: string | null;
+  before: string | null;
+  previousPage: string;
+  nextPage: string;
+  count?: number | null;
+  type: "keyset";
+}>;
+
+export type ListCommandScheduleCronsConfig = {
+  tenant?: string;
+  fields: ListCommandScheduleCronsFields;
+  filter?: CommandScheduleCronFilterInput;
+  sort?: string;
+  page?: (
+    {
+      limit?: number;
+      offset?: number;
+      count?: boolean;
+    } | {
+      limit?: number;
+      after?: string;
+      before?: string;
+    }
+  );
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+};
+
+export type ListCommandScheduleCronsResult<Fields extends ListCommandScheduleCronsFields, Page extends ListCommandScheduleCronsConfig["page"] = undefined> = | { success: true; data: InferListCommandScheduleCronsResult<Fields, Page>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Read CommandScheduleCron records
+ *
+ * @ashActionType :read
+ */
+export async function listCommandScheduleCrons<Fields extends ListCommandScheduleCronsFields, Config extends ListCommandScheduleCronsConfig = ListCommandScheduleCronsConfig>(
+  config: Config & { fields: Fields }
+): Promise<ListCommandScheduleCronsResult<Fields, Config["page"]>> {
+  const payload = {
+    action: "list_command_schedule_crons",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    ...(config.fields !== undefined && { fields: config.fields }),
+    ...(config.filter && { filter: config.filter }),
+    ...(config.sort && { sort: config.sort }),
+    ...(config.page && { page: config.page })
+  };
+
+  return executeActionRpcRequest<ListCommandScheduleCronsResult<Fields, Config["page"]>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Read CommandScheduleCron records
+ *
+ * @ashActionType :read
+ * @validation true
+ */
+export async function validateListCommandScheduleCrons(
+  config: {
+  tenant?: string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "list_command_schedule_crons",
+    ...(config.tenant !== undefined && { tenant: config.tenant })
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type CreateCommandScheduleCronInput = {
+  commandScheduleId: UUID;
+  cronId: UUID;
+};
+
+export type CreateCommandScheduleCronFields = UnifiedFieldSelection<CommandScheduleCronResourceSchema>[];
+
+export type InferCreateCommandScheduleCronResult<
+  Fields extends CreateCommandScheduleCronFields | undefined,
+> = InferResult<CommandScheduleCronResourceSchema, Fields>;
+
+export type CreateCommandScheduleCronResult<Fields extends CreateCommandScheduleCronFields | undefined = undefined> = | { success: true; data: InferCreateCommandScheduleCronResult<Fields>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Create a new CommandScheduleCron
+ *
+ * @ashActionType :create
+ */
+export async function createCommandScheduleCron<Fields extends CreateCommandScheduleCronFields | undefined = undefined>(
+  config: {
+  tenant?: string;
+  input: CreateCommandScheduleCronInput;
+  fields?: Fields;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<CreateCommandScheduleCronResult<Fields extends undefined ? [] : Fields>> {
+  const payload = {
+    action: "create_command_schedule_cron",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input,
+    ...(config.fields !== undefined && { fields: config.fields })
+  };
+
+  return executeActionRpcRequest<CreateCommandScheduleCronResult<Fields extends undefined ? [] : Fields>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Create a new CommandScheduleCron
+ *
+ * @ashActionType :create
+ * @validation true
+ */
+export async function validateCreateCommandScheduleCron(
+  config: {
+  tenant?: string;
+  input: CreateCommandScheduleCronInput;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "create_command_schedule_cron",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+
+export type DestroyCommandScheduleCronResult = | { success: true; data: {}; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Delete a CommandScheduleCron
+ *
+ * @ashActionType :destroy
+ */
+export async function destroyCommandScheduleCron(
+  config: {
+  tenant?: string;
+  identity: UUID;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<DestroyCommandScheduleCronResult> {
+  const payload = {
+    action: "destroy_command_schedule_cron",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeActionRpcRequest<DestroyCommandScheduleCronResult>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Delete a CommandScheduleCron
+ *
+ * @ashActionType :destroy
+ * @validation true
+ */
+export async function validateDestroyCommandScheduleCron(
+  config: {
+  tenant?: string;
+  identity: UUID | string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "destroy_command_schedule_cron",
     ...(config.tenant !== undefined && { tenant: config.tenant }),
     identity: config.identity
   };
@@ -1643,10 +2924,8 @@ export async function validateListCommands(
 export type CreateCommandInput = {
   name: string;
   shellCommand: string;
-  cronExpression: string;
   enabled?: boolean;
   timeoutMs?: number;
-  environmentId: UUID;
 };
 
 export type CreateCommandFields = UnifiedFieldSelection<CommandResourceSchema>[];
@@ -1720,7 +2999,6 @@ export async function validateCreateCommand(
 export type UpdateCommandInput = {
   name?: string;
   shellCommand?: string;
-  cronExpression?: string;
   enabled?: boolean;
   timeoutMs?: number;
 };
@@ -1860,6 +3138,7 @@ export async function validateDestroyCommand(
 
 export type EnqueueCommandRunInput = {
   id: UUID;
+  environmentId?: UUID;
 };
 
 export type InferEnqueueCommandRunResult = UUID;
@@ -1926,6 +3205,7 @@ export async function validateEnqueueCommandRun(
 
 export type EnqueueCommandRunInInput = {
   id: UUID;
+  environmentId?: UUID;
   delaySeconds: number;
 };
 
@@ -1993,6 +3273,7 @@ export async function validateEnqueueCommandRunIn(
 
 export type EnqueueCommandRunForceInput = {
   id: UUID;
+  environmentId?: UUID;
 };
 
 export type InferEnqueueCommandRunForceResult = UUID;
