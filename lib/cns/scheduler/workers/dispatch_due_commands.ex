@@ -11,12 +11,19 @@ defmodule Cns.Scheduler.Workers.DispatchDueCommands do
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
-    with {:ok, commands} <- Scheduler.list_enabled_commands(),
+    with {:ok, command_schedules} <-
+           Scheduler.list_command_schedules(
+             load: [
+               command: [:enabled],
+               command_schedule_environments: [environment: [:enabled]],
+               command_schedule_crons: [cron: [:crontab_expression]]
+             ]
+           ),
          {:ok, now} <- DateTime.now("Etc/UTC") do
       now = DateTime.truncate(now, :second)
 
-      Enum.each(commands, fn command ->
-        maybe_enqueue(command, now)
+      Enum.each(command_schedules, fn command_schedule ->
+        maybe_enqueue(command_schedule, now)
       end)
 
       :ok
@@ -25,23 +32,52 @@ defmodule Cns.Scheduler.Workers.DispatchDueCommands do
     end
   end
 
-  defp maybe_enqueue(command, now) do
-    case Expression.parse(command.cron_expression) do
-      {:ok, expression} ->
-        if Expression.now?(expression, now) do
-          case Jobs.enqueue_command(command.id) do
+  defp maybe_enqueue(command_schedule, now) do
+    environments =
+      command_schedule.command_schedule_environments
+      |> Enum.map(& &1.environment)
+      |> Enum.reject(&is_nil/1)
+
+    crons =
+      command_schedule.command_schedule_crons
+      |> Enum.map(& &1.cron)
+      |> Enum.reject(&is_nil/1)
+
+    if command_schedule.command.enabled do
+      if due_now?(crons, now, command_schedule.id) do
+        environments
+        |> Enum.filter(& &1.enabled)
+        |> Enum.each(fn environment ->
+          case Jobs.enqueue_command(
+                 command_schedule.command_id,
+                 environment_id: environment.id
+               ) do
             {:ok, _job} ->
               :ok
 
             {:error, reason} ->
-              Logger.error("Unable to enqueue command #{command.id}: #{inspect(reason)}")
+              Logger.error(
+                "Unable to enqueue command #{command_schedule.command_id} for environment #{environment.id}: #{inspect(reason)}"
+              )
           end
-        end
-
-      {:error, reason} ->
-        Logger.warning(
-          "Skipping command #{command.id} because cron_expression is invalid: #{inspect(reason)}"
-        )
+        end)
+      end
     end
+  end
+
+  defp due_now?(crons, now, command_schedule_id) do
+    Enum.any?(crons, fn cron ->
+      case Expression.parse(cron.crontab_expression) do
+        {:ok, expression} ->
+          Expression.now?(expression, now)
+
+        {:error, reason} ->
+          Logger.warning(
+            "Skipping cron #{cron.id} on command schedule #{command_schedule_id} because crontab expression is invalid: #{inspect(reason)}"
+          )
+
+          false
+      end
+    end)
   end
 end

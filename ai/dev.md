@@ -1,3 +1,5 @@
+- The backend uses Phoenix + Ash + Ash Oban
+- The admin interface is Phoenix LiveView implemented with Ash Admin
 - The main UI is a React app located in frontend/
-- The backend is a Phoenix + Ash + Oban app
-- The React app uses Tanstack query to talk to the Ash Typescript API
+  - Uses Tanstack Start (React) and shadcn/ui
+  - Uses Tanstack Query to communicate with the Ash Typescript API

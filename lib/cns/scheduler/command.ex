@@ -12,10 +12,6 @@ defmodule Cns.Scheduler.Command do
   postgres do
     table "commands"
     repo Cns.Repo
-
-    references do
-      reference :environment, on_delete: :delete
-    end
   end
 
   typescript do
@@ -27,12 +23,12 @@ defmodule Cns.Scheduler.Command do
 
     create :create do
       primary? true
-      accept [:name, :shell_command, :cron_expression, :enabled, :timeout_ms, :environment_id]
+      accept [:name, :shell_command, :enabled, :timeout_ms]
     end
 
     update :update do
       primary? true
-      accept [:name, :shell_command, :cron_expression, :enabled, :timeout_ms]
+      accept [:name, :shell_command, :enabled, :timeout_ms]
     end
 
     read :enabled do
@@ -41,9 +37,13 @@ defmodule Cns.Scheduler.Command do
 
     action :enqueue_run, :uuid do
       argument :id, :uuid, allow_nil?: false
+      argument :environment_id, :uuid, allow_nil?: true
 
       run fn input, _context ->
-        case Jobs.enqueue_command(input.arguments.id) do
+        case Jobs.enqueue_command(
+               input.arguments.id,
+               environment_id: input.arguments.environment_id
+             ) do
           {:ok, _job} -> {:ok, input.arguments.id}
           {:error, reason} -> {:error, reason}
         end
@@ -52,11 +52,13 @@ defmodule Cns.Scheduler.Command do
 
     action :enqueue_run_in, :uuid do
       argument :id, :uuid, allow_nil?: false
+      argument :environment_id, :uuid, allow_nil?: true
       argument :delay_seconds, :integer, allow_nil?: false, constraints: [min: 1]
 
       run fn input, _context ->
         case Jobs.enqueue_command(
                input.arguments.id,
+               environment_id: input.arguments.environment_id,
                delay_seconds: input.arguments.delay_seconds
              ) do
           {:ok, _job} -> {:ok, input.arguments.id}
@@ -67,9 +69,14 @@ defmodule Cns.Scheduler.Command do
 
     action :enqueue_run_force, :uuid do
       argument :id, :uuid, allow_nil?: false
+      argument :environment_id, :uuid, allow_nil?: true
 
       run fn input, _context ->
-        case Jobs.enqueue_command(input.arguments.id, force?: true) do
+        case Jobs.enqueue_command(
+               input.arguments.id,
+               force?: true,
+               environment_id: input.arguments.environment_id
+             ) do
           {:ok, _job} -> {:ok, input.arguments.id}
           {:error, reason} -> {:error, reason}
         end
@@ -117,12 +124,6 @@ defmodule Cns.Scheduler.Command do
       public? true
     end
 
-    attribute :cron_expression, :string do
-      allow_nil? false
-      constraints match: ~r/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/
-      public? true
-    end
-
     attribute :enabled, :boolean do
       allow_nil? false
       default true
@@ -141,18 +142,18 @@ defmodule Cns.Scheduler.Command do
   end
 
   relationships do
-    belongs_to :environment, Cns.Scheduler.Environment do
-      allow_nil? false
+    has_many :execution_events, Cns.Scheduler.CommandExecutionEvent do
+      destination_attribute :command_id
       public? true
     end
 
-    has_many :execution_events, Cns.Scheduler.CommandExecutionEvent do
+    has_many :command_schedules, Cns.Scheduler.CommandSchedule do
       destination_attribute :command_id
       public? true
     end
   end
 
   identities do
-    identity :unique_name_per_environment, [:environment_id, :name]
+    identity :unique_name, [:name]
   end
 end

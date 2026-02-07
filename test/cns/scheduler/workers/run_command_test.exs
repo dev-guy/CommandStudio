@@ -17,14 +17,25 @@ defmodule Cns.Scheduler.Workers.RunCommandTest do
 
     command =
       Scheduler.create_command!(%{
-        environment_id: environment.id,
         name: "test-command-#{System.unique_integer([:positive])}",
         shell_command: "printf 'hello-$NAME'",
-        cron_expression: "* * * * *",
         timeout_ms: 5_000
       })
 
-    assert :ok = RunCommand.perform(%Oban.Job{args: %{"command_id" => command.id}})
+    cron =
+      Scheduler.create_cron!(%{
+        name: "test-cron-#{System.unique_integer([:positive])}",
+        crontab_expression: "* * * * *"
+      })
+
+    command_schedule = Scheduler.create_command_schedule!(%{command_id: command.id})
+    Scheduler.create_command_schedule_environment!(%{command_schedule_id: command_schedule.id, environment_id: environment.id})
+    Scheduler.create_command_schedule_cron!(%{command_schedule_id: command_schedule.id, cron_id: cron.id})
+
+    assert :ok =
+             RunCommand.perform(
+               %Oban.Job{args: %{"command_id" => command.id, "environment_id" => environment.id}}
+             )
 
     events =
       Scheduler.list_command_execution_events!(
@@ -43,14 +54,25 @@ defmodule Cns.Scheduler.Workers.RunCommandTest do
 
     command =
       Scheduler.create_command!(%{
-        environment_id: environment.id,
         name: "test-command-#{System.unique_integer([:positive])}",
         shell_command: "printf 'boom' 1>&2; exit 42",
-        cron_expression: "* * * * *",
         timeout_ms: 5_000
       })
 
-    assert {:error, _message} = RunCommand.perform(%Oban.Job{args: %{"command_id" => command.id}})
+    cron =
+      Scheduler.create_cron!(%{
+        name: "test-cron-#{System.unique_integer([:positive])}",
+        crontab_expression: "* * * * *"
+      })
+
+    command_schedule = Scheduler.create_command_schedule!(%{command_id: command.id})
+    Scheduler.create_command_schedule_environment!(%{command_schedule_id: command_schedule.id, environment_id: environment.id})
+    Scheduler.create_command_schedule_cron!(%{command_schedule_id: command_schedule.id, cron_id: cron.id})
+
+    assert {:error, _message} =
+             RunCommand.perform(
+               %Oban.Job{args: %{"command_id" => command.id, "environment_id" => environment.id}}
+             )
 
     events =
       Scheduler.list_command_execution_events!(

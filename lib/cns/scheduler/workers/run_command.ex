@@ -7,11 +7,12 @@ defmodule Cns.Scheduler.Workers.RunCommand do
   alias Cns.Scheduler.CommandRunner
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"command_id" => command_id}}) do
+  def perform(%Oban.Job{args: %{"command_id" => command_id, "environment_id" => environment_id}}) do
     with {:ok, command} <- fetch_command(command_id),
+         {:ok, environment} <- fetch_environment(environment_id),
          {:ok, started_at} <- DateTime.now("Etc/UTC"),
          {:ok, _event} <- create_started_event(command.id, started_at),
-         {rendered_command, env_pairs} <- build_command_input(command),
+         {rendered_command, env_pairs} <- build_command_input(command, environment),
          result <- CommandRunner.run(rendered_command, env_pairs, command.timeout_ms),
          {:ok, finished_at} <- DateTime.now("Etc/UTC"),
          duration_ms <- DateTime.diff(finished_at, started_at, :millisecond),
@@ -25,8 +26,16 @@ defmodule Cns.Scheduler.Workers.RunCommand do
     end
   end
 
+  def perform(%Oban.Job{args: %{"command_id" => _command_id}}) do
+    {:error, "missing environment_id in job args"}
+  end
+
   defp fetch_command(command_id) do
-    Scheduler.get_command(command_id, load: [environment: [variables: [:value]]])
+    Scheduler.get_command(command_id)
+  end
+
+  defp fetch_environment(environment_id) do
+    Scheduler.get_environment(environment_id, load: [variables: [:value]])
   end
 
   defp create_started_event(command_id, started_at) do
@@ -39,9 +48,9 @@ defmodule Cns.Scheduler.Workers.RunCommand do
     })
   end
 
-  defp build_command_input(command) do
+  defp build_command_input(command, environment) do
     variables =
-      command.environment.variables
+      environment.variables
       |> Enum.reduce(%{}, fn variable, acc ->
         Map.put(acc, variable.name, variable.value)
       end)

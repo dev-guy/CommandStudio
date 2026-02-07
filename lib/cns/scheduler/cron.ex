@@ -1,4 +1,4 @@
-defmodule Cns.Scheduler.Environment do
+defmodule Cns.Scheduler.Cron do
   @moduledoc false
 
   use Ash.Resource,
@@ -8,12 +8,12 @@ defmodule Cns.Scheduler.Environment do
     extensions: [AshTypescript.Resource]
 
   postgres do
-    table "environments"
+    table "crons"
     repo Cns.Repo
   end
 
   typescript do
-    type_name "Environment"
+    type_name "Cron"
   end
 
   actions do
@@ -21,22 +21,12 @@ defmodule Cns.Scheduler.Environment do
 
     create :create do
       primary? true
-      accept [:name, :enabled]
+      accept [:name, :crontab_expression]
     end
 
     update :update do
       primary? true
-      accept [:name, :enabled]
-    end
-
-    read :by_name do
-      argument :name, :string, allow_nil?: false
-      get? true
-      filter expr(name == ^arg(:name))
-    end
-
-    read :enabled do
-      filter expr(enabled == true)
+      accept [:name, :crontab_expression]
     end
   end
 
@@ -48,9 +38,9 @@ defmodule Cns.Scheduler.Environment do
       public? true
     end
 
-    attribute :enabled, :boolean do
+    attribute :crontab_expression, :string do
       allow_nil? false
-      default true
+      constraints match: ~r/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/
       public? true
     end
 
@@ -59,13 +49,8 @@ defmodule Cns.Scheduler.Environment do
   end
 
   relationships do
-    has_many :variables, Cns.Scheduler.Variable do
-      destination_attribute :environment_id
-      public? true
-    end
-
-    has_many :command_schedule_environments, Cns.Scheduler.CommandScheduleEnvironment do
-      destination_attribute :environment_id
+    has_many :command_schedule_crons, Cns.Scheduler.CommandScheduleCron do
+      destination_attribute :cron_id
       public? true
     end
   end

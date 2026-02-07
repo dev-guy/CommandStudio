@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  Check,
   Clock3,
   Plus,
   RefreshCw,
@@ -29,13 +30,18 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  useCommandSchedulesQuery,
   useCommandsQuery,
   useCreateCommandMutation,
+  useCreateCommandScheduleMutation,
+  useCreateCronMutation,
   useCreateEnvironmentMutation,
   useCreateVariableMutation,
+  useCronsQuery,
   useEnvironmentsQuery,
   useExecutionEventsQuery,
   useUpdateCommandMutation,
+  useUpdateCronMutation,
   useUpdateEnvironmentMutation,
   useUpdateVariableMutation,
   useVariablesQuery,
@@ -81,12 +87,22 @@ const statusVariant = (status: string) => {
 const queryError = (...messages: Array<string | undefined>) =>
   messages.find((message) => message && message.length > 0) || null;
 
+const unique = (values: string[]) => [...new Set(values)];
+
 export function SchedulerDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const [createEnvironmentName, setCreateEnvironmentName] = useState("");
+  const [createEnvironmentEnabled, setCreateEnvironmentEnabled] = useState(true);
   const [updateEnvironmentId, setUpdateEnvironmentId] = useState("");
   const [updateEnvironmentName, setUpdateEnvironmentName] = useState("");
+  const [updateEnvironmentEnabled, setUpdateEnvironmentEnabled] = useState(true);
+
+  const [createCronName, setCreateCronName] = useState("");
+  const [createCronExpression, setCreateCronExpression] = useState("* * * * *");
+  const [updateCronId, setUpdateCronId] = useState("");
+  const [updateCronName, setUpdateCronName] = useState("");
+  const [updateCronExpression, setUpdateCronExpression] = useState("* * * * *");
 
   const [createVariableName, setCreateVariableName] = useState("");
   const [createVariableValue, setCreateVariableValue] = useState("");
@@ -97,39 +113,49 @@ export function SchedulerDashboard() {
 
   const [createCommandName, setCreateCommandName] = useState("");
   const [createCommandShell, setCreateCommandShell] = useState("");
-  const [createCommandCron, setCreateCommandCron] = useState("* * * * *");
-  const [createCommandEnvironmentId, setCreateCommandEnvironmentId] = useState("");
   const [createCommandTimeout, setCreateCommandTimeout] = useState("60000");
   const [createCommandEnabled, setCreateCommandEnabled] = useState(true);
 
   const [updateCommandId, setUpdateCommandId] = useState("");
   const [updateCommandName, setUpdateCommandName] = useState("");
   const [updateCommandShell, setUpdateCommandShell] = useState("");
-  const [updateCommandCron, setUpdateCommandCron] = useState("* * * * *");
   const [updateCommandTimeout, setUpdateCommandTimeout] = useState("60000");
   const [updateCommandEnabled, setUpdateCommandEnabled] = useState(true);
 
+  const [scheduleCommandId, setScheduleCommandId] = useState("");
+  const [scheduleEnvironmentIds, setScheduleEnvironmentIds] = useState<string[]>([]);
+  const [scheduleCronIds, setScheduleCronIds] = useState<string[]>([]);
+
   const environmentsQuery = useEnvironmentsQuery();
+  const cronsQuery = useCronsQuery();
   const variablesQuery = useVariablesQuery();
   const commandsQuery = useCommandsQuery();
+  const commandSchedulesQuery = useCommandSchedulesQuery();
   const eventsQuery = useExecutionEventsQuery();
 
   const createEnvironmentMutation = useCreateEnvironmentMutation();
   const updateEnvironmentMutation = useUpdateEnvironmentMutation();
+  const createCronMutation = useCreateCronMutation();
+  const updateCronMutation = useUpdateCronMutation();
   const createVariableMutation = useCreateVariableMutation();
   const updateVariableMutation = useUpdateVariableMutation();
   const createCommandMutation = useCreateCommandMutation();
   const updateCommandMutation = useUpdateCommandMutation();
+  const createCommandScheduleMutation = useCreateCommandScheduleMutation();
 
   const loading =
     environmentsQuery.isLoading ||
+    cronsQuery.isLoading ||
     variablesQuery.isLoading ||
     commandsQuery.isLoading ||
+    commandSchedulesQuery.isLoading ||
     eventsQuery.isLoading;
 
   const environments = environmentsQuery.data ?? [];
+  const crons = cronsQuery.data ?? [];
   const variables = variablesQuery.data ?? [];
   const commands = commandsQuery.data ?? [];
+  const commandSchedules = commandSchedulesQuery.data ?? [];
   const events = eventsQuery.data ?? [];
 
   useEffect(() => {
@@ -137,25 +163,36 @@ export function SchedulerDashboard() {
       setCreateVariableEnvironmentId(environments[0].id);
     }
 
-    if (!createCommandEnvironmentId && environments.length > 0) {
-      setCreateCommandEnvironmentId(environments[0].id);
+    if (!updateEnvironmentId && environments.length > 0) {
+      const firstEnvironment = environments[0];
+      setUpdateEnvironmentId(firstEnvironment.id);
+      setUpdateEnvironmentName(firstEnvironment.name);
+      setUpdateEnvironmentEnabled(firstEnvironment.enabled);
     }
 
-    if (!updateEnvironmentId && environments.length > 0) {
-      setUpdateEnvironmentId(environments[0].id);
-      setUpdateEnvironmentName(environments[0].name);
+    if (!scheduleEnvironmentIds.length && environments.length > 0) {
+      setScheduleEnvironmentIds([environments[0].id]);
     }
-  }, [
-    createCommandEnvironmentId,
-    createVariableEnvironmentId,
-    environments,
-    updateEnvironmentId,
-  ]);
+  }, [createVariableEnvironmentId, environments, scheduleEnvironmentIds.length, updateEnvironmentId]);
+
+  useEffect(() => {
+    if (!updateCronId && crons.length > 0) {
+      const firstCron = crons[0];
+      setUpdateCronId(firstCron.id);
+      setUpdateCronName(firstCron.name);
+      setUpdateCronExpression(firstCron.crontabExpression);
+    }
+
+    if (!scheduleCronIds.length && crons.length > 0) {
+      setScheduleCronIds([crons[0].id]);
+    }
+  }, [crons, scheduleCronIds.length, updateCronId]);
 
   useEffect(() => {
     if (!updateVariableId && variables.length > 0) {
-      setUpdateVariableId(variables[0].id);
-      setUpdateVariableName(variables[0].name);
+      const firstVariable = variables[0];
+      setUpdateVariableId(firstVariable.id);
+      setUpdateVariableName(firstVariable.name);
       setUpdateVariableValue("");
     }
   }, [updateVariableId, variables]);
@@ -166,21 +203,33 @@ export function SchedulerDashboard() {
       setUpdateCommandId(firstCommand.id);
       setUpdateCommandName(firstCommand.name);
       setUpdateCommandShell(firstCommand.shellCommand);
-      setUpdateCommandCron(firstCommand.cronExpression);
       setUpdateCommandTimeout(String(firstCommand.timeoutMs));
       setUpdateCommandEnabled(firstCommand.enabled);
     }
-  }, [commands, updateCommandId]);
+
+    if (!scheduleCommandId && commands.length > 0) {
+      setScheduleCommandId(commands[0].id);
+    }
+  }, [commands, scheduleCommandId, updateCommandId]);
 
   const selectedEnvironment = environments.find((environment) => environment.id === updateEnvironmentId);
+  const selectedCron = crons.find((cron) => cron.id === updateCronId);
   const selectedVariable = variables.find((variable) => variable.id === updateVariableId);
   const selectedCommand = commands.find((command) => command.id === updateCommandId);
 
   useEffect(() => {
     if (selectedEnvironment) {
       setUpdateEnvironmentName(selectedEnvironment.name);
+      setUpdateEnvironmentEnabled(selectedEnvironment.enabled);
     }
   }, [selectedEnvironment?.id]);
+
+  useEffect(() => {
+    if (selectedCron) {
+      setUpdateCronName(selectedCron.name);
+      setUpdateCronExpression(selectedCron.crontabExpression);
+    }
+  }, [selectedCron?.id]);
 
   useEffect(() => {
     if (selectedVariable) {
@@ -193,7 +242,6 @@ export function SchedulerDashboard() {
     if (selectedCommand) {
       setUpdateCommandName(selectedCommand.name);
       setUpdateCommandShell(selectedCommand.shellCommand);
-      setUpdateCommandCron(selectedCommand.cronExpression);
       setUpdateCommandTimeout(String(selectedCommand.timeoutMs));
       setUpdateCommandEnabled(selectedCommand.enabled);
     }
@@ -201,18 +249,57 @@ export function SchedulerDashboard() {
 
   const errorMessage = queryError(
     environmentsQuery.error?.message,
+    cronsQuery.error?.message,
     variablesQuery.error?.message,
     commandsQuery.error?.message,
+    commandSchedulesQuery.error?.message,
     eventsQuery.error?.message,
     createEnvironmentMutation.error?.message,
     updateEnvironmentMutation.error?.message,
+    createCronMutation.error?.message,
+    updateCronMutation.error?.message,
     createVariableMutation.error?.message,
     updateVariableMutation.error?.message,
     createCommandMutation.error?.message,
     updateCommandMutation.error?.message,
+    createCommandScheduleMutation.error?.message,
   );
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  const scheduleSummaryByCommandId = useMemo(() => {
+    return commandSchedules.reduce<Record<string, { environments: string[]; crons: string[] }>>(
+      (acc, schedule) => {
+        const commandId = schedule.commandId;
+
+        const scheduleEnvironmentNames = schedule.commandScheduleEnvironments
+          .map((entry) => {
+            if (!entry.environment) {
+              return entry.environmentId;
+            }
+
+            return entry.environment.enabled
+              ? entry.environment.name
+              : `${entry.environment.name} (disabled)`;
+          })
+          .filter(Boolean);
+
+        const scheduleCronLabels = schedule.commandScheduleCrons
+          .map((entry) => entry.cron?.crontabExpression || entry.cronId)
+          .filter(Boolean);
+
+        const existing = acc[commandId] ?? { environments: [], crons: [] };
+
+        acc[commandId] = {
+          environments: unique(existing.environments.concat(scheduleEnvironmentNames)),
+          crons: unique(existing.crons.concat(scheduleCronLabels)),
+        };
+
+        return acc;
+      },
+      {},
+    );
+  }, [commandSchedules]);
 
   const filteredCommands = useMemo(() => {
     if (!normalizedSearch) {
@@ -220,13 +307,12 @@ export function SchedulerDashboard() {
     }
 
     return commands.filter((command) => {
-      const environmentName = command.environment?.name ?? "";
-
-      return `${command.name} ${command.cronExpression} ${environmentName}`
+      const summary = scheduleSummaryByCommandId[command.id] ?? { environments: [], crons: [] };
+      return `${command.name} ${summary.crons.join(" ")} ${summary.environments.join(" ")}`
         .toLowerCase()
         .includes(normalizedSearch);
     });
-  }, [commands, normalizedSearch]);
+  }, [commands, normalizedSearch, scheduleSummaryByCommandId]);
 
   const filteredVariables = useMemo(() => {
     if (!normalizedSearch) {
@@ -259,8 +345,13 @@ export function SchedulerDashboard() {
       return;
     }
 
-    await createEnvironmentMutation.mutateAsync({ name: createEnvironmentName.trim() });
+    await createEnvironmentMutation.mutateAsync({
+      name: createEnvironmentName.trim(),
+      enabled: createEnvironmentEnabled,
+    });
+
     setCreateEnvironmentName("");
+    setCreateEnvironmentEnabled(true);
   };
 
   const handleUpdateEnvironment = async (event: FormEvent<HTMLFormElement>) => {
@@ -273,6 +364,37 @@ export function SchedulerDashboard() {
     await updateEnvironmentMutation.mutateAsync({
       id: updateEnvironmentId,
       name: updateEnvironmentName.trim(),
+      enabled: updateEnvironmentEnabled,
+    });
+  };
+
+  const handleCreateCron = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!createCronName.trim() || !createCronExpression.trim()) {
+      return;
+    }
+
+    await createCronMutation.mutateAsync({
+      name: createCronName.trim(),
+      crontabExpression: createCronExpression.trim(),
+    });
+
+    setCreateCronName("");
+    setCreateCronExpression("* * * * *");
+  };
+
+  const handleUpdateCron = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!updateCronId || !updateCronName.trim() || !updateCronExpression.trim()) {
+      return;
+    }
+
+    await updateCronMutation.mutateAsync({
+      id: updateCronId,
+      name: updateCronName.trim(),
+      crontabExpression: updateCronExpression.trim(),
     });
   };
 
@@ -312,27 +434,19 @@ export function SchedulerDashboard() {
   const handleCreateCommand = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (
-      !createCommandName.trim() ||
-      !createCommandShell.trim() ||
-      !createCommandCron.trim() ||
-      !createCommandEnvironmentId
-    ) {
+    if (!createCommandName.trim() || !createCommandShell.trim()) {
       return;
     }
 
     await createCommandMutation.mutateAsync({
       name: createCommandName.trim(),
       shellCommand: createCommandShell.trim(),
-      cronExpression: createCommandCron.trim(),
-      environmentId: createCommandEnvironmentId,
       timeoutMs: Number(createCommandTimeout),
       enabled: createCommandEnabled,
     });
 
     setCreateCommandName("");
     setCreateCommandShell("");
-    setCreateCommandCron("* * * * *");
     setCreateCommandTimeout("60000");
     setCreateCommandEnabled(true);
   };
@@ -340,7 +454,7 @@ export function SchedulerDashboard() {
   const handleUpdateCommand = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!updateCommandId || !updateCommandName.trim() || !updateCommandCron.trim()) {
+    if (!updateCommandId || !updateCommandName.trim()) {
       return;
     }
 
@@ -348,10 +462,37 @@ export function SchedulerDashboard() {
       id: updateCommandId,
       name: updateCommandName.trim(),
       shellCommand: updateCommandShell.trim(),
-      cronExpression: updateCommandCron.trim(),
       timeoutMs: Number(updateCommandTimeout),
       enabled: updateCommandEnabled,
     });
+  };
+
+  const handleCreateSchedule = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!scheduleCommandId || scheduleEnvironmentIds.length === 0 || scheduleCronIds.length === 0) {
+      return;
+    }
+
+    await createCommandScheduleMutation.mutateAsync({
+      commandId: scheduleCommandId,
+      environmentIds: scheduleEnvironmentIds,
+      cronIds: scheduleCronIds,
+    });
+  };
+
+  const toggleSelection = (
+    currentValues: string[],
+    nextValue: string,
+    setter: (values: string[]) => void,
+  ) => {
+    if (currentValues.includes(nextValue)) {
+      const nextValues = currentValues.filter((value) => value !== nextValue);
+      setter(nextValues.length === 0 ? [nextValue] : nextValues);
+      return;
+    }
+
+    setter(currentValues.concat(nextValue));
   };
 
   return (
@@ -367,7 +508,7 @@ export function SchedulerDashboard() {
               Operations Control Panel
             </h1>
             <p className="mt-2 text-zinc-600">
-              Live data and mutations powered by TanStack Query + AshTypescript RPC.
+              Commands are now scheduled via CommandSchedule + Cron + Environment joins.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -377,8 +518,10 @@ export function SchedulerDashboard() {
               onClick={() => {
                 void Promise.all([
                   environmentsQuery.refetch(),
+                  cronsQuery.refetch(),
                   variablesQuery.refetch(),
                   commandsQuery.refetch(),
+                  commandSchedulesQuery.refetch(),
                   eventsQuery.refetch(),
                 ]);
               }}
@@ -388,7 +531,7 @@ export function SchedulerDashboard() {
             </Button>
             <Button>
               <Plus className="h-4 w-4" />
-              Mutation-ready
+              Refactored model
             </Button>
           </div>
         </header>
@@ -401,35 +544,42 @@ export function SchedulerDashboard() {
           </Card>
         )}
 
-        <section className="mb-8 grid gap-4 md:grid-cols-3">
+        <section className="mb-8 grid gap-4 md:grid-cols-4">
           <Card className="hover:-translate-y-0.5 transition-transform duration-200">
             <CardHeader>
-              <CardDescription>Scheduled commands</CardDescription>
+              <CardDescription>Commands</CardDescription>
               <CardTitle className="font-[Sora] text-3xl">{commands.length}</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0 text-sm text-zinc-600">Active + disabled command definitions.</CardContent>
+            <CardContent className="pt-0 text-sm text-zinc-600">Executable command definitions.</CardContent>
           </Card>
           <Card className="hover:-translate-y-0.5 transition-transform duration-200">
             <CardHeader>
               <CardDescription>Environments</CardDescription>
               <CardTitle className="font-[Sora] text-3xl">{environments.length}</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0 text-sm text-zinc-600">Separate execution and secret scopes.</CardContent>
+            <CardContent className="pt-0 text-sm text-zinc-600">Enabled environments are schedulable.</CardContent>
           </Card>
           <Card className="hover:-translate-y-0.5 transition-transform duration-200">
             <CardHeader>
-              <CardDescription>Execution events shown</CardDescription>
-              <CardTitle className="font-[Sora] text-3xl">{events.length}</CardTitle>
+              <CardDescription>Cron definitions</CardDescription>
+              <CardTitle className="font-[Sora] text-3xl">{crons.length}</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0 text-sm text-zinc-600">Latest events loaded through RPC queries.</CardContent>
+            <CardContent className="pt-0 text-sm text-zinc-600">Reusable crontab expressions.</CardContent>
+          </Card>
+          <Card className="hover:-translate-y-0.5 transition-transform duration-200">
+            <CardHeader>
+              <CardDescription>Command schedules</CardDescription>
+              <CardTitle className="font-[Sora] text-3xl">{commandSchedules.length}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 text-sm text-zinc-600">Join-based schedule records.</CardContent>
           </Card>
         </section>
 
-        <section className="mb-8 grid gap-6 lg:grid-cols-3">
+        <section className="mb-8 grid gap-6 lg:grid-cols-5">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Environment Mutations</CardTitle>
-              <CardDescription>Create and rename environment records.</CardDescription>
+              <CardDescription>Create, rename, and enable/disable environments.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <form className="space-y-2" onSubmit={handleCreateEnvironment}>
@@ -438,6 +588,14 @@ export function SchedulerDashboard() {
                   onChange={(event) => setCreateEnvironmentName(event.target.value)}
                   placeholder="new-environment"
                 />
+                <label className="flex items-center gap-2 text-sm text-zinc-600">
+                  <input
+                    type="checkbox"
+                    checked={createEnvironmentEnabled}
+                    onChange={(event) => setCreateEnvironmentEnabled(event.target.checked)}
+                  />
+                  enabled
+                </label>
                 <Button className="w-full" disabled={createEnvironmentMutation.isPending}>
                   {createEnvironmentMutation.isPending ? "Creating..." : "Create Environment"}
                 </Button>
@@ -460,6 +618,14 @@ export function SchedulerDashboard() {
                   onChange={(event) => setUpdateEnvironmentName(event.target.value)}
                   placeholder="updated name"
                 />
+                <label className="flex items-center gap-2 text-sm text-zinc-600">
+                  <input
+                    type="checkbox"
+                    checked={updateEnvironmentEnabled}
+                    onChange={(event) => setUpdateEnvironmentEnabled(event.target.checked)}
+                  />
+                  enabled
+                </label>
                 <Button variant="secondary" className="w-full" disabled={updateEnvironmentMutation.isPending}>
                   {updateEnvironmentMutation.isPending ? "Updating..." : "Update Environment"}
                 </Button>
@@ -469,8 +635,138 @@ export function SchedulerDashboard() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">Cron Mutations</CardTitle>
+              <CardDescription>Create and update reusable crontab expressions.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <form className="space-y-2" onSubmit={handleCreateCron}>
+                <Input
+                  value={createCronName}
+                  onChange={(event) => setCreateCronName(event.target.value)}
+                  placeholder="daily-report"
+                />
+                <Input
+                  value={createCronExpression}
+                  onChange={(event) => setCreateCronExpression(event.target.value)}
+                  placeholder="* * * * *"
+                />
+                <Button className="w-full" disabled={createCronMutation.isPending}>
+                  {createCronMutation.isPending ? "Creating..." : "Create Cron"}
+                </Button>
+              </form>
+
+              <form className="space-y-2" onSubmit={handleUpdateCron}>
+                <select
+                  className="flex h-10 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+                  value={updateCronId}
+                  onChange={(event) => setUpdateCronId(event.target.value)}
+                >
+                  {crons.map((cron) => (
+                    <option key={cron.id} value={cron.id}>
+                      {cron.name}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  value={updateCronName}
+                  onChange={(event) => setUpdateCronName(event.target.value)}
+                  placeholder="cron name"
+                />
+                <Input
+                  value={updateCronExpression}
+                  onChange={(event) => setUpdateCronExpression(event.target.value)}
+                  placeholder="* * * * *"
+                />
+                <Button variant="secondary" className="w-full" disabled={updateCronMutation.isPending}>
+                  {updateCronMutation.isPending ? "Updating..." : "Update Cron"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Command Mutations</CardTitle>
+              <CardDescription>Create and update command execution settings.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <form className="space-y-2" onSubmit={handleCreateCommand}>
+                <Input
+                  value={createCommandName}
+                  onChange={(event) => setCreateCommandName(event.target.value)}
+                  placeholder="command-name"
+                />
+                <Input
+                  value={createCommandShell}
+                  onChange={(event) => setCreateCommandShell(event.target.value)}
+                  placeholder="echo hello"
+                />
+                <Input
+                  type="number"
+                  value={createCommandTimeout}
+                  onChange={(event) => setCreateCommandTimeout(event.target.value)}
+                  placeholder="timeout ms"
+                />
+                <label className="flex items-center gap-2 text-sm text-zinc-600">
+                  <input
+                    type="checkbox"
+                    checked={createCommandEnabled}
+                    onChange={(event) => setCreateCommandEnabled(event.target.checked)}
+                  />
+                  enabled
+                </label>
+                <Button className="w-full" disabled={createCommandMutation.isPending}>
+                  {createCommandMutation.isPending ? "Creating..." : "Create Command"}
+                </Button>
+              </form>
+
+              <form className="space-y-2" onSubmit={handleUpdateCommand}>
+                <select
+                  className="flex h-10 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+                  value={updateCommandId}
+                  onChange={(event) => setUpdateCommandId(event.target.value)}
+                >
+                  {commands.map((command) => (
+                    <option key={command.id} value={command.id}>
+                      {command.name}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  value={updateCommandName}
+                  onChange={(event) => setUpdateCommandName(event.target.value)}
+                  placeholder="command-name"
+                />
+                <Input
+                  value={updateCommandShell}
+                  onChange={(event) => setUpdateCommandShell(event.target.value)}
+                  placeholder="shell command"
+                />
+                <Input
+                  type="number"
+                  value={updateCommandTimeout}
+                  onChange={(event) => setUpdateCommandTimeout(event.target.value)}
+                  placeholder="timeout ms"
+                />
+                <label className="flex items-center gap-2 text-sm text-zinc-600">
+                  <input
+                    type="checkbox"
+                    checked={updateCommandEnabled}
+                    onChange={(event) => setUpdateCommandEnabled(event.target.checked)}
+                  />
+                  enabled
+                </label>
+                <Button variant="secondary" className="w-full" disabled={updateCommandMutation.isPending}>
+                  {updateCommandMutation.isPending ? "Updating..." : "Update Command"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Variable Mutations</CardTitle>
-              <CardDescription>Create and rotate secret variables.</CardDescription>
+              <CardDescription>Create and rotate environment variables.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <form className="space-y-2" onSubmit={handleCreateVariable}>
@@ -531,61 +827,15 @@ export function SchedulerDashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Command Mutations</CardTitle>
-              <CardDescription>Create and update schedules and execution config.</CardDescription>
+              <CardTitle className="text-base">Command Schedule Mutation</CardTitle>
+              <CardDescription>Link one command to many environments and crons.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5">
-              <form className="space-y-2" onSubmit={handleCreateCommand}>
-                <Input
-                  value={createCommandName}
-                  onChange={(event) => setCreateCommandName(event.target.value)}
-                  placeholder="command-name"
-                />
-                <Input
-                  value={createCommandShell}
-                  onChange={(event) => setCreateCommandShell(event.target.value)}
-                  placeholder="echo hello"
-                />
-                <Input
-                  value={createCommandCron}
-                  onChange={(event) => setCreateCommandCron(event.target.value)}
-                  placeholder="* * * * *"
-                />
+            <CardContent className="space-y-4">
+              <form className="space-y-3" onSubmit={handleCreateSchedule}>
                 <select
                   className="flex h-10 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
-                  value={createCommandEnvironmentId}
-                  onChange={(event) => setCreateCommandEnvironmentId(event.target.value)}
-                >
-                  {environments.map((environment) => (
-                    <option key={environment.id} value={environment.id}>
-                      {environment.name}
-                    </option>
-                  ))}
-                </select>
-                <Input
-                  type="number"
-                  value={createCommandTimeout}
-                  onChange={(event) => setCreateCommandTimeout(event.target.value)}
-                  placeholder="timeout ms"
-                />
-                <label className="flex items-center gap-2 text-sm text-zinc-600">
-                  <input
-                    type="checkbox"
-                    checked={createCommandEnabled}
-                    onChange={(event) => setCreateCommandEnabled(event.target.checked)}
-                  />
-                  enabled
-                </label>
-                <Button className="w-full" disabled={createCommandMutation.isPending}>
-                  {createCommandMutation.isPending ? "Creating..." : "Create Command"}
-                </Button>
-              </form>
-
-              <form className="space-y-2" onSubmit={handleUpdateCommand}>
-                <select
-                  className="flex h-10 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
-                  value={updateCommandId}
-                  onChange={(event) => setUpdateCommandId(event.target.value)}
+                  value={scheduleCommandId}
+                  onChange={(event) => setScheduleCommandId(event.target.value)}
                 >
                   {commands.map((command) => (
                     <option key={command.id} value={command.id}>
@@ -593,37 +843,49 @@ export function SchedulerDashboard() {
                     </option>
                   ))}
                 </select>
-                <Input
-                  value={updateCommandName}
-                  onChange={(event) => setUpdateCommandName(event.target.value)}
-                  placeholder="command-name"
-                />
-                <Input
-                  value={updateCommandShell}
-                  onChange={(event) => setUpdateCommandShell(event.target.value)}
-                  placeholder="shell command"
-                />
-                <Input
-                  value={updateCommandCron}
-                  onChange={(event) => setUpdateCommandCron(event.target.value)}
-                  placeholder="cron expression"
-                />
-                <Input
-                  type="number"
-                  value={updateCommandTimeout}
-                  onChange={(event) => setUpdateCommandTimeout(event.target.value)}
-                  placeholder="timeout ms"
-                />
-                <label className="flex items-center gap-2 text-sm text-zinc-600">
-                  <input
-                    type="checkbox"
-                    checked={updateCommandEnabled}
-                    onChange={(event) => setUpdateCommandEnabled(event.target.checked)}
-                  />
-                  enabled
-                </label>
-                <Button variant="secondary" className="w-full" disabled={updateCommandMutation.isPending}>
-                  {updateCommandMutation.isPending ? "Updating..." : "Update Command"}
+
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Environments</p>
+                  <div className="space-y-1">
+                    {environments.map((environment) => (
+                      <label key={environment.id} className="flex items-center gap-2 text-sm text-zinc-700">
+                        <input
+                          type="checkbox"
+                          checked={scheduleEnvironmentIds.includes(environment.id)}
+                          onChange={() =>
+                            toggleSelection(
+                              scheduleEnvironmentIds,
+                              environment.id,
+                              setScheduleEnvironmentIds,
+                            )
+                          }
+                        />
+                        {environment.name}
+                        {!environment.enabled ? <span className="text-zinc-400">(disabled)</span> : null}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Crons</p>
+                  <div className="space-y-1">
+                    {crons.map((cron) => (
+                      <label key={cron.id} className="flex items-center gap-2 text-sm text-zinc-700">
+                        <input
+                          type="checkbox"
+                          checked={scheduleCronIds.includes(cron.id)}
+                          onChange={() => toggleSelection(scheduleCronIds, cron.id, setScheduleCronIds)}
+                        />
+                        {cron.name}
+                        <span className="font-mono text-xs text-zinc-500">{cron.crontabExpression}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <Button className="w-full" disabled={createCommandScheduleMutation.isPending}>
+                  {createCommandScheduleMutation.isPending ? "Creating..." : "Create Schedule"}
                 </Button>
               </form>
             </CardContent>
@@ -637,7 +899,7 @@ export function SchedulerDashboard() {
                 <ShieldCheck className="h-4 w-4 text-emerald-600" />
                 Environments
               </CardTitle>
-              <CardDescription>Snapshot of environments and variable counts.</CardDescription>
+              <CardDescription>Environment state and variable counts.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {environments.map((environment) => {
@@ -652,7 +914,16 @@ export function SchedulerDashboard() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-medium text-zinc-900">{environment.name}</p>
-                      <Badge variant="default">{environment.id.slice(0, 8)}</Badge>
+                      <Badge variant={environment.enabled ? "success" : "warning"}>
+                        {environment.enabled ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Check className="h-3 w-3" />
+                            enabled
+                          </span>
+                        ) : (
+                          "disabled"
+                        )}
+                      </Badge>
                     </div>
                     <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
                       <span>{variableCount} variables</span>
@@ -677,7 +948,7 @@ export function SchedulerDashboard() {
                 <div className="relative flex-1">
                   <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-zinc-400" />
                   <Input
-                    placeholder="Search command name, variable, status, or environment"
+                    placeholder="Search command name, cron, variable, status, or environment"
                     className="pl-9"
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
@@ -698,33 +969,40 @@ export function SchedulerDashboard() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Command</TableHead>
-                        <TableHead>Cron</TableHead>
-                        <TableHead>Environment</TableHead>
+                        <TableHead>Schedules</TableHead>
+                        <TableHead>Environments</TableHead>
                         <TableHead>Timeout</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredCommands.map((command) => (
-                        <TableRow key={command.id}>
-                          <TableCell className="font-medium">
-                            <span className="inline-flex items-center gap-2">
-                              <Terminal className="h-4 w-4 text-zinc-500" />
-                              {command.name}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-zinc-700">
-                            {command.cronExpression}
-                          </TableCell>
-                          <TableCell>{command.environment?.name ?? command.environmentId}</TableCell>
-                          <TableCell>{Math.round(command.timeoutMs / 1000)}s</TableCell>
-                          <TableCell>
-                            <Badge variant={command.enabled ? "success" : "warning"}>
-                              {command.enabled ? "enabled" : "disabled"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {filteredCommands.map((command) => {
+                        const summary = scheduleSummaryByCommandId[command.id] ?? {
+                          environments: [],
+                          crons: [],
+                        };
+
+                        return (
+                          <TableRow key={command.id}>
+                            <TableCell className="font-medium">
+                              <span className="inline-flex items-center gap-2">
+                                <Terminal className="h-4 w-4 text-zinc-500" />
+                                {command.name}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-zinc-700">
+                              {summary.crons.length > 0 ? summary.crons.join(" | ") : "No schedules"}
+                            </TableCell>
+                            <TableCell>{summary.environments.length > 0 ? summary.environments.join(", ") : "-"}</TableCell>
+                            <TableCell>{Math.round(command.timeoutMs / 1000)}s</TableCell>
+                            <TableCell>
+                              <Badge variant={command.enabled ? "success" : "warning"}>
+                                {command.enabled ? "enabled" : "disabled"}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                       {!loading && filteredCommands.length === 0 && (
                         <TableRow>
                           <TableCell className="text-zinc-500" colSpan={5}>
