@@ -16,6 +16,7 @@ export type EnvironmentResourceSchema = {
   name: string;
   enabled: boolean;
   variables: { __type: "Relationship"; __array: true; __resource: VariableResourceSchema; };
+  commandSchedules: { __type: "Relationship"; __array: true; __resource: CommandScheduleResourceSchema; };
   commandScheduleEnvironments: { __type: "Relationship"; __array: true; __resource: CommandScheduleEnvironmentResourceSchema; };
   commandJobs: { __type: "Relationship"; __array: true; __resource: CommandJobResourceSchema; };
 };
@@ -39,6 +40,7 @@ export type CronResourceSchema = {
   name: string;
   crontabExpression: string;
   enabled: boolean;
+  commandSchedules: { __type: "Relationship"; __array: true; __resource: CommandScheduleResourceSchema; };
   commandScheduleCrons: { __type: "Relationship"; __array: true; __resource: CommandScheduleCronResourceSchema; };
   commandJobs: { __type: "Relationship"; __array: true; __resource: CommandJobResourceSchema; };
 };
@@ -63,6 +65,8 @@ export type CommandScheduleResourceSchema = {
   enabled: boolean;
   commandId: UUID;
   command: { __type: "Relationship"; __resource: CommandResourceSchema; };
+  environments: { __type: "Relationship"; __array: true; __resource: EnvironmentResourceSchema; };
+  crons: { __type: "Relationship"; __array: true; __resource: CronResourceSchema; };
   commandScheduleEnvironments: { __type: "Relationship"; __array: true; __resource: CommandScheduleEnvironmentResourceSchema; };
   commandScheduleCrons: { __type: "Relationship"; __array: true; __resource: CommandScheduleCronResourceSchema; };
 };
@@ -266,6 +270,8 @@ export type EnvironmentFilterInput = {
 
   variables?: VariableFilterInput;
 
+  commandSchedules?: CommandScheduleFilterInput;
+
   commandScheduleEnvironments?: CommandScheduleEnvironmentFilterInput;
 
   commandJobs?: CommandJobFilterInput;
@@ -300,6 +306,8 @@ export type CronFilterInput = {
   };
 
 
+  commandSchedules?: CommandScheduleFilterInput;
+
   commandScheduleCrons?: CommandScheduleCronFilterInput;
 
   commandJobs?: CommandJobFilterInput;
@@ -329,6 +337,10 @@ export type CommandScheduleFilterInput = {
 
 
   command?: CommandFilterInput;
+
+  environments?: EnvironmentFilterInput;
+
+  crons?: CronFilterInput;
 
   commandScheduleEnvironments?: CommandScheduleEnvironmentFilterInput;
 

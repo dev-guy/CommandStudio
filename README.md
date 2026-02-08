@@ -150,7 +150,7 @@ Go to:
 - The following MCP server are recommended:
   - [DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
   - [Tidewave MCP](https://github.com/tidewave-ai/tidewave)
-- "boot" your AI Assistant by instructing it to read [ai/boot.md](ai/boot.md)
+- "boot" your AI Assistant by instructing it to "follow the instructions in [ai/boot.md](ai/boot.md)"
 
 ### Ash + Oban Collaboration
 

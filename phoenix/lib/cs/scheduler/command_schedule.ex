@@ -53,6 +53,20 @@ defmodule Cs.Scheduler.CommandSchedule do
       public? true
     end
 
+    many_to_many :environments, Cs.Scheduler.Environment do
+      through Cs.Scheduler.CommandScheduleEnvironment
+      source_attribute_on_join_resource :command_schedule_id
+      destination_attribute_on_join_resource :environment_id
+      public? true
+    end
+
+    many_to_many :crons, Cs.Scheduler.Cron do
+      through Cs.Scheduler.CommandScheduleCron
+      source_attribute_on_join_resource :command_schedule_id
+      destination_attribute_on_join_resource :cron_id
+      public? true
+    end
+
     has_many :command_schedule_environments, Cs.Scheduler.CommandScheduleEnvironment do
       destination_attribute :command_schedule_id
       public? true

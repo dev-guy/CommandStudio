@@ -11,8 +11,6 @@ defmodule Cs.Scheduler.CommandScheduleEnvironment do
     table "command_schedule_environments"
     repo Cs.Repo
 
-    identity_index_names unique_command_schedule_environment: "cmd_sched_env_uidx"
-
     references do
       reference :command_schedule, on_delete: :delete
       reference :environment, on_delete: :delete
@@ -40,17 +38,19 @@ defmodule Cs.Scheduler.CommandScheduleEnvironment do
 
   relationships do
     belongs_to :command_schedule, Cs.Scheduler.CommandSchedule do
+      source_attribute :command_schedule_id
       allow_nil? false
       public? true
     end
 
     belongs_to :environment, Cs.Scheduler.Environment do
+      source_attribute :environment_id
       allow_nil? false
       public? true
     end
   end
 
   identities do
-    identity :unique_command_schedule_environment, [:command_schedule_id, :environment_id]
+    identity :unique_link, [:environment_id, :command_schedule_id]
   end
 end

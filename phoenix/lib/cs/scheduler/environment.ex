@@ -64,6 +64,13 @@ defmodule Cs.Scheduler.Environment do
       public? true
     end
 
+    many_to_many :command_schedules, Cs.Scheduler.CommandSchedule do
+      through Cs.Scheduler.CommandScheduleEnvironment
+      source_attribute_on_join_resource :environment_id
+      destination_attribute_on_join_resource :command_schedule_id
+      public? true
+    end
+
     has_many :command_schedule_environments, Cs.Scheduler.CommandScheduleEnvironment do
       destination_attribute :environment_id
       public? true
