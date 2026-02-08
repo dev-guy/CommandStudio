@@ -29,6 +29,10 @@ defmodule CsWeb.Router do
     plug :set_actor, :user
   end
 
+  pipeline :authenticated_api do
+    plug :require_authenticated_api_user
+  end
+
   pipeline :allow_iframe_from_vite do
     plug :put_iframe_compatible_headers
   end
@@ -54,6 +58,14 @@ defmodule CsWeb.Router do
 
   scope "/api", CsWeb do
     pipe_through :api
+
+    post "/auth/sign_in", AuthApiController, :sign_in
+    get "/auth/me", AuthApiController, :me
+    post "/auth/sign_out", AuthApiController, :sign_out
+  end
+
+  scope "/api", CsWeb do
+    pipe_through [:api, :authenticated_api]
 
     post "/rpc/run", AshTypescriptRpcController, :run
     post "/rpc/validate", AshTypescriptRpcController, :validate
@@ -87,12 +99,6 @@ defmodule CsWeb.Router do
     confirm_route User, :confirm_new_user,
       auth_routes_prefix: "/auth",
       overrides: [CsWeb.AuthOverrides, DaisyUI]
-
-    # Remove this if you do not use the magic link strategy.
-    magic_sign_in_route(User, :magic_link,
-      auth_routes_prefix: "/auth",
-      overrides: [CsWeb.AuthOverrides, DaisyUI]
-    )
   end
 
   # Other scopes may use custom stacks.
@@ -140,5 +146,20 @@ defmodule CsWeb.Router do
       "content-security-policy",
       "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' ws: wss:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self' http://localhost:5173; form-action 'self'"
     )
+  end
+
+  defp require_authenticated_api_user(conn, _opts) do
+    case Ash.PlugHelpers.get_actor(conn) do
+      nil ->
+        body = Jason.encode!(%{success: false, error: "Authentication required"})
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(:unauthorized, body)
+        |> Plug.Conn.halt()
+
+      _actor ->
+        conn
+    end
   end
 end

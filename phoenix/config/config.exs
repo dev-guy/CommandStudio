@@ -71,8 +71,7 @@ config :cs, Oban,
 config :cs,
   ecto_repos: [Cs.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [Cs.Accounts, Cs.Scheduler],
-  ash_authentication: [return_error_on_invalid_magic_link_token?: true]
+  ash_domains: [Cs.Accounts, Cs.Scheduler]
 
 # Configure esbuild (the version is required)
 config :esbuild,
