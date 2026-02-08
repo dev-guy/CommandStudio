@@ -10,8 +10,8 @@ sequenceDiagram
     participant CronPlugin as "Oban.Plugins.Cron"
     participant Oban as "Oban Queue"
     participant Dispatch as "DispatchDueCommands Worker"
-    participant Ash as "Cns.Scheduler (Ash Domain)"
-    participant Jobs as "Cns.Scheduler.Jobs"
+    participant Ash as "Cs.Scheduler (Ash Domain)"
+    participant Jobs as "Cs.Scheduler.Jobs"
 
     CronPlugin->>Oban: Insert DispatchDueCommands job every minute ("* * * * *")
     Oban->>Dispatch: perform(%Oban.Job{})
@@ -40,8 +40,8 @@ sequenceDiagram
     autonumber
     participant UI as "React UI / RPC Client"
     participant AshAction as "Ash Resource Action (Command / CommandJobEvent)"
-    participant Jobs as "Cns.Scheduler.Jobs"
-    participant Ash as "Cns.Scheduler (Ash Domain)"
+    participant Jobs as "Cs.Scheduler.Jobs"
+    participant Ash as "Cs.Scheduler (Ash Domain)"
     participant Oban as "Oban Queue"
     participant Run as "RunCommand Worker"
     participant Runner as "CommandRunner"
@@ -67,8 +67,8 @@ sequenceDiagram
 ## Where this behavior is configured in code
 
 - Minute wake-up: `config/config.exs` (`Oban.Plugins.Cron`, `"* * * * *"`)
-- Dispatch worker: `lib/cns/scheduler/workers/dispatch_due_commands.ex`
-- Enqueue bridge (Ash -> Oban): `lib/cns/scheduler/jobs.ex`
-- Ash actions that queue jobs: `lib/cns/scheduler/command.ex`, `lib/cns/scheduler/command_job_event.ex`
-- Execution worker: `lib/cns/scheduler/workers/run_command.ex`
+- Dispatch worker: `phoenix/lib/cs/scheduler/workers/dispatch_due_commands.ex`
+- Enqueue bridge (Ash -> Oban): `phoenix/lib/cs/scheduler/jobs.ex`
+- Ash actions that queue jobs: `phoenix/lib/cs/scheduler/command.ex`, `phoenix/lib/cs/scheduler/command_job_event.ex`
+- Execution worker: `phoenix/lib/cs/scheduler/workers/run_command.ex`
 

@@ -51,7 +51,7 @@ elixir --version
 mix --version
 ```
 
-### 2. Install NodeJS
+### 2. Install nvm
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
@@ -72,8 +72,6 @@ cd CommandStudio
 
 ### 4. Install Node.js from `.nvmrc`
 
-This repository includes a root `.nvmrc`.
-
 ```bash
 nvm install
 nvm use
@@ -85,20 +83,21 @@ node -v
 Backend:
 
 ```bash
+cd phoenix
 mix deps.get
 ```
 
 Frontend:
 
 ```bash
-cd frontend
+cd webapp/studio
 npm install
-cd ..
 ```
 
 ### 6. Prepare the database
 
 ```bash
+cd phoenix
 mix setup
 ```
 
@@ -107,21 +106,22 @@ mix setup
 Start Phoenix:
 
 ```bash
+cd phoenix
 mix phx.server
 ```
 
-In a second terminal, run the React UI:
+Run the React UI:
 
 ```bash
-cd frontend
+cd webapp/studio
 npm run dev
 ```
 
-Open:
+## Web Applications
 
-- React app: [http://localhost:5173](http://localhost:5173)
-- Phoenix app: [http://localhost:4000](http://localhost:4000)
-- Oban Web: [http://localhost:4000/oban](http://localhost:4000/oban)
+- [CommandStudio]http://localhost:5173)
+- [Ash Admin](http://localhost:4000/admin)
+- [Oban Web](http://localhost:4000/oban)
 
 ### Ash + Oban sequence
 
@@ -148,7 +148,26 @@ The `ai/` directory contains assistant-facing project context and workflow docs 
 
 These files help keep generated changes aligned with project conventions and architecture decisions.
 
-## Technical Observations
+## Development
+
+- Install MCP server support in your AI assistant:
+  - [DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
+  - [Tidewave MCP](https://github.com/tidewave-ai/tidewave)
+
+## Discussion
+
+### Built with Codex Desktop using GPT 5.3 Codex Medium
+
+The following files were fed into Codex:
+
+- [PRD](ai/prd.md)
+- [Architecture](ai/architecture.md)
+- [Development Plan](ai/devplan.md)
+
+#### React App
+
+1. I didn't run TanStack Start manually (Codex ran it for me) but manual installation is recommended
+2. I didn't specify that `class-variance-authority` should be used. Models already know about it. Notice that `ai/architecture.md` doesn't specify much beyond 
 
 ### Command Scheduling via an Ash action
 
