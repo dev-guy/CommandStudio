@@ -1,8 +1,8 @@
 # Editor directories and files
+.claude/*
 .vscode/*
-.expert/
-!.vscode/extensions.json
-.idea
+.expert/*
+.idea/*
 .DS_Store
 *.suo
 *.ntvs*
@@ -10,4 +10,3 @@
 *.sln
 *.sw?
 
-.claude/*
