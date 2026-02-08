@@ -297,9 +297,9 @@ export function useCommandSchedulesQuery() {
   });
 }
 
-export function useExecutionEventsQuery() {
+export function useExecutionEventsQuery(limit = 250) {
   return useQuery({
-    queryKey: ["scheduler", "execution-events"],
+    queryKey: ["scheduler", "execution-events", limit],
     queryFn: async () => {
       const result = await listCommandJobEvents({
         fields: [
@@ -321,7 +321,7 @@ export function useExecutionEventsQuery() {
           },
         ],
         sort: "-createdAt",
-        page: { limit: 25 },
+        page: { limit },
         headers: rpcHeaders(),
       });
 
