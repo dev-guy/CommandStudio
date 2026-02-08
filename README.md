@@ -32,6 +32,7 @@ The React Command Studio application allows users to:
 - View additional details via Oban Web
 
 ![Command Studio UI](docs/images/scheduler-ux.png)
+![CommandStudio Oban Web panel](docs/images/scheduler-ux.png)
 
 ## Installation
 
@@ -160,3 +161,4 @@ It's worth noting that development did not start until after AGENTS.md was gener
 
 To build the React app, we didn't run TanStack Start manually (Codex ran it for me) but manual installation is recommended. We also didn't specify using `class-variance-authority`. Models already know about it.
 
+`webapp/studio/eslint.config.js` was configured with `globalIgnores(['dist', 'src/lib/ash_rpc.ts'])` so ESLint skips the generated Ash RPC client file. Otherwise, eslint will report a lot of errors.
