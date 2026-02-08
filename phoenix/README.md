@@ -1,5 +1,10 @@
+# Command Studio Phoenix App
+
+## Creation
+
 This project was created using the [Ash Installer](https://ash-hq.org) that output the following command.
 
+```sh
 sh <(curl 'https://ash-hq.org/install/cs?install=phoenix') \
     && cd cs && mix igniter.install ash ash_phoenix \
     ash_postgres ash_authentication \
@@ -7,4 +12,4 @@ sh <(curl 'https://ash-hq.org/install/cs?install=phoenix') \
     cloak ash_cloak usage_rules ash_typescript \
     --auth-strategy password --auth-strategy magic_link \
     --framework react --setup --yes
-
+```
