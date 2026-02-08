@@ -1,8 +1,8 @@
 # Command Studio
 
-This is an example project using Ash Typescript.
+This project was built using an AI (Codex GPT 3.5 Medium) primarily using Elixir, Ash, and React.
 
-## Major Technologies
+## Technologies
 
 - [Elixir](https://elixir-lang.org/)
   - [Phoenix](https://www.phoenixframework.org/)
@@ -18,9 +18,9 @@ This is an example project using Ash Typescript.
   - Embeds [Oban Web](https://getoban.pro/) via an IFrame
   - Communicates with Phoenix/Ash backend via [Ash TypeScript](https://hexdocs.pm/ash_typescript) - As far as the app is concerned, it's TypeScript All the Way Down!
 
-## Project purpose
+## Purpose
 
-This project provides an operations dashboard for the scheduled execution of remote jobs with the optional ability to pass secrets to them. Secrets are encrypted at rest.
+This project implements an operations dashboard for the scheduled execution of remote jobs with the optional ability to pass secrets to them. Secrets are encrypted at rest.
 
 The main tasks of the React-based application is to:
 
@@ -34,9 +34,11 @@ The main tasks of the React-based application is to:
 
 ![Command Studio UI](docs/images/scheduler-ux.png)
 
-## Usage
+## Installation
 
-### 1. Install Elixir and Erlang/OTP
+### 1. Install Postgres
+
+### 2. Install Elixir and Erlang/OTP
 
 This project runs on Phoenix + Ash, so Elixir/Erlang are required first.
 
@@ -51,7 +53,7 @@ elixir --version
 mix --version
 ```
 
-### 2. Install nvm
+### 3. Install nvm
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
@@ -63,14 +65,14 @@ Reload your shell:
 source ~/.nvm/nvm.sh
 ```
 
-### 3. Clone the repository
+### 4. Clone the repository
 
 ```bash
 git clone https://github.com/dev-guy/CommandStudio.git
 cd CommandStudio
 ```
 
-### 4. Install Node.js from `.nvmrc`
+### 5. Install NodeJS
 
 ```bash
 nvm install
@@ -78,7 +80,7 @@ nvm use
 node -v
 ```
 
-### 5. Install dependencies
+### 6. Install dependencies
 
 Backend:
 
@@ -94,14 +96,14 @@ cd webapp/studio
 npm install
 ```
 
-### 6. Prepare the database
+### 7. Prepare the database
 
 ```bash
 cd phoenix
 mix setup
 ```
 
-### 7. Run the app
+### 8. Run the app
 
 Start Phoenix:
 
@@ -117,17 +119,14 @@ cd webapp/studio
 npm run dev
 ```
 
-## Web Applications
+## Usage
 
+Go to:
 - [CommandStudio]http://localhost:5173)
 - [Ash Admin](http://localhost:4000/admin)
 - [Oban Web](http://localhost:4000/oban)
 
-### Ash + Oban sequence
-
-- See the Mermaid sequence document: [docs/ash-oban-sequence.md](docs/ash-oban-sequence.md)
-
-## Why Oban is used
+## Why Oban
 
 Oban is robust and has a fantastic operational UI. It has the following benefits that took years to perfect:
 
@@ -137,6 +136,12 @@ Oban is robust and has a fantastic operational UI. It has the following benefits
 - Control: queue-level tuning and worker isolation keep execution predictable
 - It works with Ecto/Postgres
 
+### Ash + Oban Colaboration
+
+See the Mermaid sequence document: [docs/ash-oban-sequence.md](docs/ash-oban-sequence.md)
+
+This project doesn't use an Ash generic action to queue jobs to Oban. Therefore, Ash Oban isn't used. This decision was made by Codex. More thought should be put into how generic Ash action could call the function that checks for scheduled jobs to execute.
+
 ## AI-Assisted Development
 
 - The following MCP server are recommended:
@@ -144,9 +149,7 @@ Oban is robust and has a fantastic operational UI. It has the following benefits
   - [Tidewave MCP](https://github.com/tidewave-ai/tidewave)
 - "boot" your AI Assistant by instructing it to read [ai/boot.md](ai/boot.md)
 
-## Discussion
-
-### Built with Codex Desktop using GPT 5.3 Codex Medium
+### Creation
 
 The following documents were generated with ChatGPT 5.3 and then fed into Codex:
 
@@ -154,15 +157,7 @@ The following documents were generated with ChatGPT 5.3 and then fed into Codex:
 - [Architecture](ai/architecture.md)
 - [Development Plan](ai/devplan.md)
 
-It's worth noting that development should not start until AGENTS.md is generated via [usage_rules](https://hexdocs.pm/usage_rules) and Tidewave MCP is running.
+It's worth noting that development did not start until after AGENTS.md was generated via [usage_rules](https://hexdocs.pm/usage_rules).
 
-### React App
+To build the React app, we didn't run TanStack Start manually (Codex ran it for me) but manual installation is recommended. We also didn't specify using `class-variance-authority`. Models already know about it.
 
-1. I didn't run TanStack Start manually (Codex ran it for me) but manual installation is recommended
-2. I didn't specify that `class-variance-authority` should be used. Models already know about it. Notice that `ai/architecture.md` doesn't specify much beyond 
-
-### Command Scheduling via an Ash action
-
-This project doesn't use Ash generic actions (and therefore Ash Oban) and therefore the actual command execution isn't very 'Ashy.'
-
-This decision was made by Codex. More thought should be put into how generic Ash action could call the function that checks for scheduled jobs to execute.
