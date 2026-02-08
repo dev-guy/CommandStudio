@@ -141,9 +141,9 @@ Go to:
 
 ## Ash Highlights
 
+- The model has many to many relationships. These are harder than you might think.
 - Contains nontrivial searches with pagination
 - The AI assistant added password-based authentication via Ash Authentication plus username/password form + a logout menu in about 10 minutes. The most time I spent was deciding how I wanted the admin account to be seeded.
-- The model has many to many relationships but I am not certain whether Codex did a 100% job. Are resources on the supposed to have `*_id` attributes to hold the foreign key? I thought Ash did that automatically.
 
 ### AI-Assisted Development
 
