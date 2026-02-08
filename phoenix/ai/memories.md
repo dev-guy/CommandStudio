@@ -1,0 +1,1 @@
+- Restart the database server using `brew services restart postgresql@18`

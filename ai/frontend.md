@@ -1,1 +1,0 @@
-- Manage Tanstack Query queries and cache keys in a central location

@@ -1,12 +1,11 @@
 Always read the following files in this directory:
 
-- memories.md
 - dev.md
-- elixir.md
-- ash.md
-- frontend.md
 
-Read AGENTS.md in the parent directory when designing and coding
+Read and follow the instructions in the following directories:
+
+- phoenix/ai/boot.md
+- webapp/studio/ai/boot.md
 
 Consult the other documents in this directory when you need them:
 
