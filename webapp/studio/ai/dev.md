@@ -2,4 +2,4 @@
 - Uses Tanstack Start (React) and shadcn/ui
 - Uses Tanstack Query to communicate with the Ash Typescript API
 - Run the application by going to http://localhost:5173/
-- Run "npm lint" and fix all warnings and errors after changing this code. Ignore the issues in the generated file `ash_rpc.ts`
+- Run "npm lint"

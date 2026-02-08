@@ -868,12 +868,19 @@ export function SchedulerDashboard() {
                           onChange={(event) => setCreateCommandShell(event.target.value)}
                           placeholder="bundle exec rake jobs:sync"
                         />
-                        <Input
-                          type="number"
-                          value={createCommandTimeout}
-                          onChange={(event) => setCreateCommandTimeout(event.target.value)}
-                          placeholder="timeout in milliseconds"
-                        />
+                        <div className="space-y-1">
+                          <label htmlFor="create-command-timeout" className="text-sm font-medium text-zinc-700">
+                            Timeout (milliseconds)
+                          </label>
+                          <Input
+                            id="create-command-timeout"
+                            type="number"
+                            value={createCommandTimeout}
+                            onChange={(event) => setCreateCommandTimeout(event.target.value)}
+                            placeholder="timeout in milliseconds"
+                            title="Timeout in milliseconds"
+                          />
+                        </div>
                         <label className="flex items-center gap-2 text-sm text-zinc-600">
                           <input
                             type="checkbox"
@@ -916,12 +923,19 @@ export function SchedulerDashboard() {
                           onChange={(event) => setCommandEdit({ shellCommand: event.target.value })}
                           placeholder="shell command"
                         />
-                        <Input
-                          type="number"
-                          value={updateCommandTimeout}
-                          onChange={(event) => setCommandEdit({ timeoutMs: event.target.value })}
-                          placeholder="timeout in milliseconds"
-                        />
+                        <div className="space-y-1">
+                          <label htmlFor="update-command-timeout" className="text-sm font-medium text-zinc-700">
+                            Timeout (milliseconds)
+                          </label>
+                          <Input
+                            id="update-command-timeout"
+                            type="number"
+                            value={updateCommandTimeout}
+                            onChange={(event) => setCommandEdit({ timeoutMs: event.target.value })}
+                            placeholder="timeout in milliseconds"
+                            title="Timeout in milliseconds"
+                          />
+                        </div>
                         <label className="flex items-center gap-2 text-sm text-zinc-600">
                           <input
                             type="checkbox"
