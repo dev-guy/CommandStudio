@@ -139,14 +139,20 @@ Go to:
 
 ## The Code
 
-## AI-Assisted Development
+## Ash Highlights
+
+- Contains nontrivial searches with pagination
+- The AI assistant added password-based authentication via Ash Authentication plus username/password form + a logout menu in about 10 minutes. The most time I spent was deciding how I wanted the admin account to be seeded.
+- The model has many to many relationships but I am not certain whether Codex did a 100% job. Are resources on the supposed to have `*_id` attributes to hold the foreign key? I thought Ash did that automatically.
+
+### AI-Assisted Development
 
 - The following MCP server are recommended:
   - [DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
   - [Tidewave MCP](https://github.com/tidewave-ai/tidewave)
 - "boot" your AI Assistant by instructing it to read [ai/boot.md](ai/boot.md)
 
-### Ash + Oban Colaboration
+### Ash + Oban Collaboration
 
 The Command resource defines Ash generic actions (action `:enqueue_run`, `:enqueue_run_in`, `:enqueue_run_force`) that call `Jobs.enqueue_command/2`, and that function enqueues the Oban job via `Oban.insert/1`.
 
