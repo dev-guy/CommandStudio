@@ -2,19 +2,25 @@ import {
   type ComponentType,
   type FormEvent,
   type SVGProps,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
   Activity,
   ArrowUpRight,
+  ChevronDown,
   Clock3,
+  LogOut,
   Plus,
   RefreshCw,
   Search,
   ShieldCheck,
   Terminal,
+  UserCircle2,
 } from "lucide-react";
+import { useLoaderData, useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +42,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { signOut, type AuthUser } from "@/lib/auth";
 import {
   useCommandSchedulesQuery,
   useCommandsQuery,
@@ -133,7 +140,13 @@ const toTimeoutMs = (value: string, fallback = 60_000) => {
 };
 
 export function SchedulerDashboard() {
+  const navigate = useNavigate();
+  const currentUser = useLoaderData() as AuthUser;
+
   const [activeSection, setActiveSection] = useState<DashboardSection>("overview");
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   const [commandSearchTerm, setCommandSearchTerm] = useState("");
   const [variableSearchTerm, setVariableSearchTerm] = useState("");
@@ -266,6 +279,41 @@ export function SchedulerDashboard() {
         [selectedEnvironment.id]: { ...base, ...patch },
       };
     });
+  };
+
+  useEffect(() => {
+    const onDocumentMouseDown = (event: MouseEvent) => {
+      if (!userMenuRef.current?.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onDocumentMouseDown);
+
+    return () => {
+      document.removeEventListener("mousedown", onDocumentMouseDown);
+    };
+  }, []);
+
+  const initials =
+    currentUser.email
+      .split("@")[0]
+      .split(/[.\-_]/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("") || "U";
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+
+    try {
+      await signOut();
+      navigate("/login", { replace: true });
+    } finally {
+      setIsSigningOut(false);
+      setIsUserMenuOpen(false);
+    }
   };
 
   const setCronEdit = (
@@ -676,10 +724,6 @@ export function SchedulerDashboard() {
         <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="h-fit rounded-2xl border border-zinc-200/80 bg-white/85 p-4 shadow-[0_20px_40px_-30px_rgba(0,0,0,0.4)] backdrop-blur lg:sticky lg:top-6">
             <div className="mb-5">
-              <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-lime-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-lime-800">
-                <Activity className="h-3.5 w-3.5" />
-                Scheduler UX
-              </p>
               <h1 className="font-[Sora] text-2xl font-bold tracking-tight">CommandStudio</h1>
               <p className="mt-2 text-sm text-zinc-600">Configure jobs, link schedules, and inspect execution telemetry.</p>
             </div>
@@ -719,8 +763,8 @@ export function SchedulerDashboard() {
             </div>
           </aside>
 
-          <section className="space-y-6">
-            <header className="flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-white/90 p-5 shadow-[0_20px_40px_-34px_rgba(0,0,0,0.35)] backdrop-blur md:flex-row md:items-center md:justify-between">
+          <section className="relative z-0 space-y-6">
+            <header className="relative z-30 flex flex-col gap-4 overflow-visible rounded-2xl border border-zinc-200/80 bg-white/90 p-5 shadow-[0_20px_40px_-34px_rgba(0,0,0,0.35)] backdrop-blur md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Operations Console</p>
                 <h2 className="mt-1 font-[Sora] text-3xl font-semibold tracking-tight">Execution Configuration Workspace</h2>
@@ -735,6 +779,45 @@ export function SchedulerDashboard() {
                   <Plus className="h-4 w-4" />
                   New command
                 </Button>
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsUserMenuOpen((open) => !open)}
+                    className="flex h-10 items-center gap-2 rounded-full border border-zinc-200 bg-white px-2 pr-3 text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50"
+                    aria-haspopup="menu"
+                    aria-expanded={isUserMenuOpen}
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
+                      {initials}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-zinc-500" />
+                  </button>
+
+                  {isUserMenuOpen ? (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-zinc-200 bg-white p-2 shadow-[0_20px_40px_-24px_rgba(0,0,0,0.35)]"
+                    >
+                      <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+                        <UserCircle2 className="h-8 w-8 text-zinc-400" />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-zinc-800">{currentUser.email}</p>
+                          <p className="text-xs text-zinc-500">Signed in</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleSignOut}
+                        disabled={isSigningOut}
+                        className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        {isSigningOut ? "Logging out..." : "Log out"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </header>
 
