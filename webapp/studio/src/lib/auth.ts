@@ -50,7 +50,7 @@ export async function signInWithPassword(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
 
-  const payload = (await response.json()) as SignInResponse;
+  const payload = await readJson<SignInResponse>(response);
 
   if (!response.ok || !payload.success || !payload.data?.token) {
     throw new Error(payload.error || "Invalid email or password");
@@ -66,7 +66,7 @@ export async function loadCurrentUser() {
     headers: buildAuthHeaders(),
   });
 
-  const payload = (await response.json()) as SessionResponse;
+  const payload = await readJson<SessionResponse>(response);
 
   if (!response.ok || !payload.authenticated || !payload.user) {
     clearAuthToken();
@@ -77,10 +77,26 @@ export async function loadCurrentUser() {
 }
 
 export async function signOut() {
-  await fetch("/api/auth/sign_out", {
+  const response = await fetch("/api/auth/sign_out", {
     method: "POST",
     headers: buildAuthHeaders(),
   });
 
+  await readJson(response);
   clearAuthToken();
+}
+
+async function readJson<T = unknown>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type") || "";
+  const body = await response.text();
+
+  if (!body) {
+    return {} as T;
+  }
+
+  if (!contentType.toLowerCase().includes("application/json")) {
+    throw new Error("Expected JSON API response but received HTML/text.");
+  }
+
+  return JSON.parse(body) as T;
 }
