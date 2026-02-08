@@ -103,7 +103,18 @@ cd phoenix
 mix setup
 ```
 
-### 8. Run the app
+### 8. Add the admin user
+
+The admin user is `admin@example.com`
+
+```bash
+cd phoenix
+mix run priv/repo/seeds.exs
+```
+
+This command outputs a random password. Take a note of it.
+
+### 9. Run the app
 
 Start Phoenix:
 
@@ -122,7 +133,7 @@ npm run dev
 ## Usage
 
 Go to:
-- [CommandStudio]http://localhost:5173)
+- [CommandStudio](http://localhost:5173)
 - [Ash Admin](http://localhost:4000/admin)
 - [Oban Web](http://localhost:4000/oban)
 
