@@ -32,7 +32,7 @@ The React Command Studio application allows users to:
 - View additional details via Oban Web
 
 ![Command Studio UI](docs/images/scheduler-ux.png)
-![CommandStudio Oban Web panel](docs/images/scheduler-ux.png)
+![CommandStudio Oban Web panel](docs/images/oban-web-ux.png)
 
 ## Installation
 
