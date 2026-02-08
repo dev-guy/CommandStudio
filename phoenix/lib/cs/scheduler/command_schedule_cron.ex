@@ -11,8 +11,6 @@ defmodule Cs.Scheduler.CommandScheduleCron do
     table "command_schedule_crons"
     repo Cs.Repo
 
-    identity_index_names unique_command_schedule_cron: "cmd_sched_cron_uidx"
-
     references do
       reference :command_schedule, on_delete: :delete
       reference :cron, on_delete: :delete
@@ -40,17 +38,19 @@ defmodule Cs.Scheduler.CommandScheduleCron do
 
   relationships do
     belongs_to :command_schedule, Cs.Scheduler.CommandSchedule do
+      source_attribute :command_schedule_id
       allow_nil? false
       public? true
     end
 
     belongs_to :cron, Cs.Scheduler.Cron do
+      source_attribute :cron_id
       allow_nil? false
       public? true
     end
   end
 
   identities do
-    identity :unique_command_schedule_cron, [:command_schedule_id, :cron_id]
+    identity :unique_link, [:cron_id, :command_schedule_id]
   end
 end
