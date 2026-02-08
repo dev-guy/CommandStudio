@@ -1,10 +1,11 @@
 # Command Studio
 
-This project was built using an AI (Codex GPT 3.5 Medium) primarily using Elixir, Ash, and React.
+This project implements an operations dashboard for the scheduled execution of remote jobs with the optional ability to pass secrets to them. Secrets are encrypted at rest.
 
 ## Technologies
 
 - [Elixir](https://elixir-lang.org/)
+  - [Usage Rules](https://hexdocs.pm/usage_rules)
   - [Phoenix](https://www.phoenixframework.org/)
   - [LiveView](https://hexdocs.pm/phoenix_live_view/) for admin UI
   - [Ash](https://ash-hq.org/): Define your model, derive the rest -- including paginated remote queries and countless other table stakes
@@ -18,19 +19,17 @@ This project was built using an AI (Codex GPT 3.5 Medium) primarily using Elixir
   - Embeds [Oban Web](https://getoban.pro/) via an IFrame
   - Communicates with Phoenix/Ash backend via [Ash TypeScript](https://hexdocs.pm/ash_typescript) - As far as the app is concerned, it's TypeScript All the Way Down!
 
-## Purpose
+## UX
 
-This project implements an operations dashboard for the scheduled execution of remote jobs with the optional ability to pass secrets to them. Secrets are encrypted at rest.
+The React Command Studio application allows users to:
 
-The main tasks of the React-based application is to:
-
-- Defining execution commands (shell scripts)
-- Defining execution environments
-- Managing encrypted secrets that can be embedded into commands securely
+- Define commands (shell scripts) to run with constraints (currently only maximum execution time)
+- Define execution environments
+- Manage encrypted secrets that can be embedded into commands securely
   - They don't appear, for example, in history files or `ps`
-- Scheduling commands to run on specified environments using crontab expressions
-- Command execution with retry and timeout enforcement via Oban
-- Inspecting command execution events with filters and pagination
+- Schedule commands to run on specified environments using crontab expressions
+- Monitor command execution events with filters and pagination
+- View additional details via Oban Web
 
 ![Command Studio UI](docs/images/scheduler-ux.png)
 
@@ -126,21 +125,7 @@ Go to:
 - [Ash Admin](http://localhost:4000/admin)
 - [Oban Web](http://localhost:4000/oban)
 
-## Why Oban
-
-Oban is robust and has a fantastic operational UI. It has the following benefits that took years to perfect:
-
-- Durability: jobs are persisted in Postgres, so work survives restarts
-- Reliability: retries, backoff, and failure tracking are built in
-- Observability: Oban Web provides real-time queue and job introspection
-- Control: queue-level tuning and worker isolation keep execution predictable
-- It works with Ecto/Postgres
-
-### Ash + Oban Colaboration
-
-See the Mermaid sequence document: [docs/ash-oban-sequence.md](docs/ash-oban-sequence.md)
-
-This project doesn't use an Ash generic action to queue jobs to Oban. Therefore, Ash Oban isn't used. This decision was made by Codex. More thought should be put into how generic Ash action could call the function that checks for scheduled jobs to execute.
+## The Code
 
 ## AI-Assisted Development
 
@@ -148,6 +133,20 @@ This project doesn't use an Ash generic action to queue jobs to Oban. Therefore,
   - [DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
   - [Tidewave MCP](https://github.com/tidewave-ai/tidewave)
 - "boot" your AI Assistant by instructing it to read [ai/boot.md](ai/boot.md)
+
+### Ash + Oban Colaboration
+
+The Command resource defines Ash generic actions (action `:enqueue_run`, `:enqueue_run_in`, `:enqueue_run_force`) that call `Jobs.enqueue_command/2`, and that function enqueues the Oban job via `Oban.insert/1`.
+
+See the Mermaid sequence document: [docs/ash-oban-sequence.md](docs/ash-oban-sequence.md)
+
+Why use Oban? Oban is robust and has a fantastic operational UI. It has the following benefits that took years to perfect:
+
+- Durability: jobs are persisted in Postgres, so work survives restarts
+- Reliability: retries, backoff, and failure tracking are built in
+- Observability: Oban Web provides real-time queue and job introspection
+- Control: queue-level tuning and worker isolation keep execution predictable
+- It works with Ecto/Postgres
 
 ### Creation
 
