@@ -1,8 +1,8 @@
 # Command Studio
 
-This is an example project that was developed in about 48 hours using Codex.
+This is an example project using Ash Typescript.
 
-## Major Technologies (all open source)
+## Major Technologies
 
 - [Elixir](https://elixir-lang.org/)
   - [Phoenix](https://www.phoenixframework.org/)
@@ -137,38 +137,32 @@ Oban is robust and has a fantastic operational UI. It has the following benefits
 - Control: queue-level tuning and worker isolation keep execution predictable
 - It works with Ecto/Postgres
 
-## The `ai/` folder
+## AI-Assisted Development
 
-The `ai/` directory contains assistant-facing project context and workflow docs used by coding agents:
-
-- `boot.md`: startup instructions for agents (which files to read first)
-- `dev.md`, `elixir.md`, `frontend.md`, `ash.md`: implementation conventions by area
-- `architecture.md`, `prd.md`, `devplan.md`: product and system context
-- `memories.md`: short operational notes remembered across tasks
-
-These files help keep generated changes aligned with project conventions and architecture decisions.
-
-## Development
-
-- Install MCP server support in your AI assistant:
+- The following MCP server are recommended:
   - [DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
   - [Tidewave MCP](https://github.com/tidewave-ai/tidewave)
+- "boot" your AI Assistant by instructing it to read [ai/boot.md](ai/boot.md)
 
 ## Discussion
 
 ### Built with Codex Desktop using GPT 5.3 Codex Medium
 
-The following files were fed into Codex:
+The following documents were generated with ChatGPT 5.3 and then fed into Codex:
 
 - [PRD](ai/prd.md)
 - [Architecture](ai/architecture.md)
 - [Development Plan](ai/devplan.md)
 
-#### React App
+It's worth noting that development should not start until AGENTS.md is generated via [usage_rules](https://hexdocs.pm/usage_rules) and Tidewave MCP is running.
+
+### React App
 
 1. I didn't run TanStack Start manually (Codex ran it for me) but manual installation is recommended
 2. I didn't specify that `class-variance-authority` should be used. Models already know about it. Notice that `ai/architecture.md` doesn't specify much beyond 
 
 ### Command Scheduling via an Ash action
 
-This project doesn't use Ash generic actions (and therefore Ash Oban) and therefore the actual command execution isn't very 'Ashy.' This was done for expediency but more thought should be put into how generic Ash action could call the function that checks for scheduled jobs to execute.
+This project doesn't use Ash generic actions (and therefore Ash Oban) and therefore the actual command execution isn't very 'Ashy.'
+
+This decision was made by Codex. More thought should be put into how generic Ash action could call the function that checks for scheduled jobs to execute.
