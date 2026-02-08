@@ -29,6 +29,10 @@ defmodule CnsWeb.Router do
     plug :set_actor, :user
   end
 
+  pipeline :allow_iframe_from_vite do
+    plug :put_iframe_compatible_headers
+  end
+
   scope "/", CnsWeb do
     pipe_through :browser
 
@@ -113,7 +117,7 @@ defmodule CnsWeb.Router do
     end
 
     scope "/" do
-      pipe_through :browser
+      pipe_through [:browser, :allow_iframe_from_vite]
 
       oban_dashboard("/oban")
     end
@@ -127,5 +131,14 @@ defmodule CnsWeb.Router do
 
       ash_admin "/"
     end
+  end
+
+  defp put_iframe_compatible_headers(conn, _opts) do
+    conn
+    |> Plug.Conn.delete_resp_header("x-frame-options")
+    |> Plug.Conn.put_resp_header(
+      "content-security-policy",
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' ws: wss:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self' http://localhost:5173; form-action 'self'"
+    )
   end
 end

@@ -20,6 +20,7 @@ defmodule CnsWeb.ConnCase do
   using do
     quote do
       use CnsWeb, :verified_routes
+
       import CnsWeb.ConnCase
       import Phoenix.ConnTest
       import Plug.Conn
