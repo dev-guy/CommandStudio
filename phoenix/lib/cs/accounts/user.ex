@@ -22,7 +22,7 @@ defmodule Cs.Accounts.User do
         confirm_on_update? false
         require_interaction? true
         confirmed_at_field :confirmed_at
-        auto_confirm_actions [:sign_in_with_magic_link, :reset_password_with_token]
+        auto_confirm_actions [:reset_password_with_token]
         sender Cs.Accounts.User.Senders.SendNewUserConfirmationEmail
       end
     end
@@ -46,16 +46,6 @@ defmodule Cs.Accounts.User do
           password_reset_action_name :reset_password_with_token
           request_password_reset_action_name :request_password_reset_token
         end
-      end
-
-      remember_me :remember_me
-
-      magic_link do
-        identity_field :email
-        registration_enabled? true
-        require_interaction? true
-
-        sender Cs.Accounts.User.Senders.SendMagicLinkEmail
       end
     end
   end
@@ -234,41 +224,6 @@ defmodule Cs.Accounts.User do
       # Generates an authentication token for the user
       change AshAuthentication.GenerateTokenChange
     end
-
-    create :sign_in_with_magic_link do
-      description "Sign in or register a user with magic link."
-
-      argument :token, :string do
-        description "The token from the magic link that was sent to the user"
-        allow_nil? false
-      end
-
-      argument :remember_me, :boolean do
-        description "Whether to generate a remember me token"
-        allow_nil? true
-      end
-
-      upsert? true
-      upsert_identity :unique_email
-      upsert_fields [:email]
-
-      # Uses the information from the token to create or sign in the user
-      change AshAuthentication.Strategy.MagicLink.SignInChange
-
-      change {AshAuthentication.Strategy.RememberMe.MaybeGenerateTokenChange, strategy_name: :remember_me}
-
-      metadata :token, :string do
-        allow_nil? false
-      end
-    end
-
-    action :request_magic_link do
-      argument :email, :ci_string do
-        allow_nil? false
-      end
-
-      run AshAuthentication.Strategy.MagicLink.Request
-    end
   end
 
   policies do
@@ -283,6 +238,7 @@ defmodule Cs.Accounts.User do
     attribute :email, :ci_string do
       allow_nil? false
       public? true
+      constraints match: ~r/^[^\s]+@[^\s]+\.[^\s]+$/
     end
 
     attribute :hashed_password, :string do

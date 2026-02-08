@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  buildAuthHeaders,
+} from "@/lib/auth";
+
+import {
   buildCSRFHeaders,
   createCommand,
   createCommandSchedule,
@@ -25,7 +29,7 @@ import {
   updateVariable,
 } from "@/lib/ash_rpc";
 
-const rpcHeaders = () => buildCSRFHeaders();
+const rpcHeaders = () => buildAuthHeaders(buildCSRFHeaders());
 
 const rpcErrorMessage = (errors: Array<{ shortMessage: string; message: string }>) =>
   errors.map((error) => error.shortMessage || error.message).join(", ");
