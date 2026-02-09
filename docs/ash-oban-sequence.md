@@ -1,4 +1,4 @@
-# Ash + Oban Sequence
+# Ash + Oban Collaboration
 
 Ash and Oban coordinate to execute commands.
 
