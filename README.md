@@ -1,6 +1,6 @@
 # Command Studio
 
-!Warning! this is not meant for production since the entire goal of the project is remote code execution. For learning purposes only.
+!Warning! this is not meant for production since the goal of this project is remote code execution. For learning purposes only.
 
 Configure and monitor the remote execution of remote shell commands with the abilty to pass secrets to them. Secrets are encrypted at rest.
 
