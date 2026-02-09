@@ -171,7 +171,7 @@ Why use Oban? Oban is robust and has a fantastic operational UI. It has the foll
 
 ### Creation
 
-The following documents were generated with ChatGPT 5.3 and then fed into Codex 5.3:
+The following documents were generated with ChatGPT 5.2 and then fed into Codex 5.3:
 
 - [PRD](ai/prd.md)
 - [Architecture](ai/architecture.md)
