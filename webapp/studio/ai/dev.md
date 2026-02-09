@@ -7,4 +7,4 @@
 - Test the application by going to http://localhost:5173/
 - Run "npm lint" after making any code changes and fiz all
 errors and warnings
-- Run "npm test" after naking any code changes
+- Run "npm test" after making any code changes
