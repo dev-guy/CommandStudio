@@ -140,7 +140,12 @@ Go to:
 - [Ash Admin](http://localhost:4000/admin)
 - [Oban Web](http://localhost:4000/oban)
 
-## The Code
+## AI-Assisted Development
+
+- The following MCP servers are recommended:
+  - [DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
+  - [Tidewave MCP](https://github.com/tidewave-ai/tidewave)
+- "boot" your AI Assistant by instructing it to "follow the instructions in [ai/boot.md](ai/boot.md)"
 
 ## Ash Highlights
 
@@ -148,14 +153,7 @@ Go to:
 - Contains nontrivial searches with pagination
 - The AI assistant added password-based authentication via Ash Authentication plus username/password form + a logout menu in about 10 minutes. The most time I spent was deciding how I wanted the admin account to be seeded.
 
-### AI-Assisted Development
-
-- The following MCP servers are recommended:
-  - [DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
-  - [Tidewave MCP](https://github.com/tidewave-ai/tidewave)
-- "boot" your AI Assistant by instructing it to "follow the instructions in [ai/boot.md](ai/boot.md)"
-
-### Ash + Oban Collaboration
+## Ash + Oban Collaboration
 
 The Command resource defines Ash generic actions (action `:enqueue_run`, `:enqueue_run_in`, `:enqueue_run_force`) that call `Jobs.enqueue_command/2`, and that function enqueues the Oban job via `Oban.insert/1`.
 
@@ -169,7 +167,7 @@ Why use Oban? Oban is robust and has a fantastic operational UI. It has the foll
 - Control: queue-level tuning and worker isolation keep execution predictable
 - It works with Ecto/Postgres
 
-### Creation
+## Project Creation
 
 The following documents were generated with ChatGPT 5.2 and then fed into Codex 5.3 Medium:
 
@@ -179,7 +177,7 @@ The following documents were generated with ChatGPT 5.2 and then fed into Codex 
 
 Development did not start until AGENTS.md was generated via [Usage_Rules](https://hexdocs.pm/usage_rules).
 
-#### React Notes
+## React 
 
 1. TanStack Start was run by Codex. However, manual installation is recommended.
 2. I didn't specify using `class-variance-authority`. Models already know about it.
