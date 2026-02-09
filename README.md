@@ -175,8 +175,10 @@ The following documents were generated with ChatGPT 5.3 and then fed into Codex:
 - [Architecture](ai/architecture.md)
 - [Development Plan](ai/devplan.md)
 
-It's worth noting that development did not start until after AGENTS.md was generated via [usage_rules](https://hexdocs.pm/usage_rules).
+Development did not start until AGENTS.md was generated via [Usage_Rules](https://hexdocs.pm/usage_rules).
 
-To build the React app, we didn't run TanStack Start manually (Codex ran it for me) but manual installation is recommended. We also didn't specify using `class-variance-authority`. Models already know about it.
+#### React Notes
 
-`webapp/studio/eslint.config.js` was configured with `globalIgnores(['dist', 'src/lib/ash_rpc.ts'])` so ESLint skips the generated Ash RPC client file. Otherwise, eslint will report a lot of errors.
+1. TanStack Start was run by Codex. However, manual installation is recommended.
+2. I didn't specify using `class-variance-authority`. Models already know about it.
+3. `webapp/studio/eslint.config.js` was configured with `globalIgnores(['dist', 'src/lib/ash_rpc.ts'])` so ESLint skips the generated Ash RPC client file. Otherwise, eslint will report many errors.
