@@ -40,7 +40,7 @@ The React application lets users:
 
 `brew install postgresql@18`
 
-### 2. Install Elixir and Erlang/OTP
+### 2. Install Elixir
 
 ```bash
 brew install elixir
@@ -75,6 +75,7 @@ cd CommandStudio
 ### 5. Install NodeJS
 
 ```bash
+cd webapp/studio
 nvm install
 nvm use
 node -v
