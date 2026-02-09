@@ -110,7 +110,6 @@ defmodule MyApp.Blog.PostTag do
   actions do
     defaults [:create, :read, :destroy]
   end
-
-  # Optional but highly recommended: ensure uniqueness at the DB layer too.
-  # You'll typically add a unique index on [:post_id, :tag_id] in a migration.
 end
+
+
