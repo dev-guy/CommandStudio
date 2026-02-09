@@ -150,7 +150,7 @@ Go to:
 
 ### AI-Assisted Development
 
-- The following MCP server are recommended:
+- The following MCP servers are recommended:
   - [DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
   - [Tidewave MCP](https://github.com/tidewave-ai/tidewave)
 - "boot" your AI Assistant by instructing it to "follow the instructions in [ai/boot.md](ai/boot.md)"
@@ -171,7 +171,7 @@ Why use Oban? Oban is robust and has a fantastic operational UI. It has the foll
 
 ### Creation
 
-The following documents were generated with ChatGPT 5.3 and then fed into Codex:
+The following documents were generated with ChatGPT 5.3 and then fed into Codex 5.3:
 
 - [PRD](ai/prd.md)
 - [Architecture](ai/architecture.md)
