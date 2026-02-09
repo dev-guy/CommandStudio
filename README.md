@@ -1,6 +1,6 @@
 # Command Studio
 
-This project implements an operations dashboard for the scheduled execution of remote jobs with the optional ability to pass secrets to them. Secrets are encrypted at rest.
+Configure and monitor the remote execution of shell commands with the abilty to pass secrets to them. Secrets are encrypted at rest.
 
 ## Technologies
 
@@ -8,7 +8,7 @@ This project implements an operations dashboard for the scheduled execution of r
   - [Usage Rules](https://hexdocs.pm/usage_rules)
   - [Phoenix](https://www.phoenixframework.org/)
   - [LiveView](https://hexdocs.pm/phoenix_live_view/) for admin UI
-  - [Ash](https://ash-hq.org/): Define your model, derive the rest -- including paginated remote queries and countless other table stakes
+  - [Ash](https://ash-hq.org/): Define your model, derive the rest -- including paginated remote queries and many other table stakes
   - [Ash Postgres](https://hexdocs.pm/ash_postgres/) for persistence
   - [Ash Authentication](https://hexdocs.pm/ash_authentication/)
   - [Oban](https://oban.pro/) for robust job execution
@@ -17,13 +17,13 @@ This project implements an operations dashboard for the scheduled execution of r
   - [TanStack Query](https://tanstack.com/query/)
   - [shadcn/ui](https://shadcn-ui.com/) for UI components
   - Embeds [Oban Web](https://getoban.pro/) via an IFrame
-  - Communicates with Phoenix/Ash backend via [Ash TypeScript](https://hexdocs.pm/ash_typescript) - As far as the app is concerned, it's TypeScript All the Way Down!
+  - Communicates with Phoenix/Ash via [Ash TypeScript](https://hexdocs.pm/ash_typescript). As far as the app is concerned, it's TypeScript All the Way Down!
 
 ## UX
 
-The React Command Studio application allows users to:
+The React application lets users:
 
-- Define commands (shell scripts) to run with constraints (currently only maximum execution time)
+- Define commands (shell scripts) to run with constraints (currently only maximum execution time). Secrets can be emedded in commands by referring to them by name, such as `$secret_name`. Secrets can have one value per environment.
 - Define execution environments
 - Manage encrypted secrets that can be embedded into commands securely
   - They don't appear, for example, in history files or `ps`
@@ -38,9 +38,9 @@ The React Command Studio application allows users to:
 
 ### 1. Install Postgres
 
-### 2. Install Elixir and Erlang/OTP
+`brew install postgresql@18`
 
-This project runs on Phoenix + Ash, so Elixir/Erlang are required first.
+### 2. Install Elixir and Erlang/OTP
 
 ```bash
 brew install elixir
