@@ -12,6 +12,7 @@ defmodule Cs.Scheduler do
   alias Cs.Scheduler.Cron
   alias Cs.Scheduler.Environment
   alias Cs.Scheduler.Variable
+  alias Cs.Scheduler.VariableEnvironment
 
   admin do
     show? true
@@ -56,6 +57,13 @@ defmodule Cs.Scheduler do
       rpc_action :create_variable, :create
       rpc_action :update_variable, :update
       rpc_action :destroy_variable, :destroy
+    end
+
+    resource VariableEnvironment do
+      rpc_action :list_variable_environments, :read
+      rpc_action :create_variable_environment, :create
+      rpc_action :update_variable_environment, :update
+      rpc_action :destroy_variable_environment, :destroy
     end
 
     resource Command do
@@ -130,6 +138,14 @@ defmodule Cs.Scheduler do
       define :destroy_variable, action: :destroy
       define :list_variables, action: :read
       define :get_variable, action: :read, get_by: [:id]
+    end
+
+    resource VariableEnvironment do
+      define :create_variable_environment, action: :create
+      define :update_variable_environment, action: :update
+      define :destroy_variable_environment, action: :destroy
+      define :list_variable_environments, action: :read
+      define :get_variable_environment, action: :read, get_by: [:id]
     end
 
     resource Command do

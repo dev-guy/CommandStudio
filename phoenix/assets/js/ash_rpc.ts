@@ -15,10 +15,11 @@ export type EnvironmentResourceSchema = {
   id: UUID;
   name: string;
   enabled: boolean;
-  variables: { __type: "Relationship"; __array: true; __resource: VariableResourceSchema; };
   commandSchedules: { __type: "Relationship"; __array: true; __resource: CommandScheduleResourceSchema; };
+  variables: { __type: "Relationship"; __array: true; __resource: VariableResourceSchema; };
   commandScheduleEnvironments: { __type: "Relationship"; __array: true; __resource: CommandScheduleEnvironmentResourceSchema; };
   commandJobs: { __type: "Relationship"; __array: true; __resource: CommandJobResourceSchema; };
+  variableEnvironments: { __type: "Relationship"; __array: true; __resource: VariableEnvironmentResourceSchema; };
 };
 
 
@@ -129,21 +130,44 @@ export type CommandScheduleCronAttributesOnlySchema = {
 // Variable Schema
 export type VariableResourceSchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "name" | "environmentId" | "value";
+  __primitiveFields: "id" | "name";
   id: UUID;
   name: string;
-  environmentId: UUID;
-  value: string;
-  environment: { __type: "Relationship"; __resource: EnvironmentResourceSchema; };
+  environments: { __type: "Relationship"; __array: true; __resource: EnvironmentResourceSchema; };
+  variableEnvironments: { __type: "Relationship"; __array: true; __resource: VariableEnvironmentResourceSchema; };
 };
 
 
 
 export type VariableAttributesOnlySchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "name" | "environmentId";
+  __primitiveFields: "id" | "name";
   id: UUID;
   name: string;
+};
+
+
+// VariableEnvironment Schema
+export type VariableEnvironmentResourceSchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "regularValue" | "variableId" | "environmentId" | "secretValue";
+  id: UUID;
+  regularValue: string | null;
+  variableId: UUID;
+  environmentId: UUID;
+  secretValue: string | null;
+  variable: { __type: "Relationship"; __resource: VariableResourceSchema; };
+  environment: { __type: "Relationship"; __resource: EnvironmentResourceSchema; };
+};
+
+
+
+export type VariableEnvironmentAttributesOnlySchema = {
+  __type: "Resource";
+  __primitiveFields: "id" | "regularValue" | "variableId" | "environmentId";
+  id: UUID;
+  regularValue: string | null;
+  variableId: UUID;
   environmentId: UUID;
 };
 
@@ -268,13 +292,15 @@ export type EnvironmentFilterInput = {
   };
 
 
-  variables?: VariableFilterInput;
-
   commandSchedules?: CommandScheduleFilterInput;
+
+  variables?: VariableFilterInput;
 
   commandScheduleEnvironments?: CommandScheduleEnvironmentFilterInput;
 
   commandJobs?: CommandJobFilterInput;
+
+  variableEnvironments?: VariableEnvironmentFilterInput;
 
 };
 export type CronFilterInput = {
@@ -422,18 +448,49 @@ export type VariableFilterInput = {
     in?: Array<string>;
   };
 
+
+  environments?: EnvironmentFilterInput;
+
+  variableEnvironments?: VariableEnvironmentFilterInput;
+
+};
+export type VariableEnvironmentFilterInput = {
+  and?: Array<VariableEnvironmentFilterInput>;
+  or?: Array<VariableEnvironmentFilterInput>;
+  not?: Array<VariableEnvironmentFilterInput>;
+
+  id?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
+  regularValue?: {
+    eq?: string;
+    notEq?: string;
+    in?: Array<string>;
+  };
+
+  variableId?: {
+    eq?: UUID;
+    notEq?: UUID;
+    in?: Array<UUID>;
+  };
+
   environmentId?: {
     eq?: UUID;
     notEq?: UUID;
     in?: Array<UUID>;
   };
 
-  value?: {
+  secretValue?: {
     eq?: string;
     notEq?: string;
     in?: Array<string>;
   };
 
+
+  variable?: VariableFilterInput;
 
   environment?: EnvironmentFilterInput;
 
@@ -2775,8 +2832,6 @@ export async function validateListVariables(
 
 export type CreateVariableInput = {
   name: string;
-  environmentId: UUID;
-  value?: string;
 };
 
 export type CreateVariableFields = UnifiedFieldSelection<VariableResourceSchema>[];
@@ -2849,7 +2904,6 @@ export async function validateCreateVariable(
 
 export type UpdateVariableInput = {
   name?: string;
-  value?: string;
 };
 
 export type UpdateVariableFields = UnifiedFieldSelection<VariableResourceSchema>[];
@@ -2974,6 +3028,320 @@ export async function validateDestroyVariable(
 ): Promise<ValidationResult> {
   const payload = {
     action: "destroy_variable",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type ListVariableEnvironmentsFields = UnifiedFieldSelection<VariableEnvironmentResourceSchema>[];
+
+
+export type InferListVariableEnvironmentsResult<
+  Fields extends ListVariableEnvironmentsFields | undefined,
+  Page extends ListVariableEnvironmentsConfig["page"] = undefined
+> = ConditionalPaginatedResultMixed<Page, Array<InferResult<VariableEnvironmentResourceSchema, Fields>>, {
+  results: Array<InferResult<VariableEnvironmentResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  offset: number;
+  count?: number | null;
+  type: "offset";
+}, {
+  results: Array<InferResult<VariableEnvironmentResourceSchema, Fields>>;
+  hasMore: boolean;
+  limit: number;
+  after: string | null;
+  before: string | null;
+  previousPage: string;
+  nextPage: string;
+  count?: number | null;
+  type: "keyset";
+}>;
+
+export type ListVariableEnvironmentsConfig = {
+  tenant?: string;
+  fields: ListVariableEnvironmentsFields;
+  filter?: VariableEnvironmentFilterInput;
+  sort?: string;
+  page?: (
+    {
+      limit?: number;
+      offset?: number;
+      count?: boolean;
+    } | {
+      limit?: number;
+      after?: string;
+      before?: string;
+    }
+  );
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+};
+
+export type ListVariableEnvironmentsResult<Fields extends ListVariableEnvironmentsFields, Page extends ListVariableEnvironmentsConfig["page"] = undefined> = | { success: true; data: InferListVariableEnvironmentsResult<Fields, Page>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Read VariableEnvironment records
+ *
+ * @ashActionType :read
+ */
+export async function listVariableEnvironments<Fields extends ListVariableEnvironmentsFields, Config extends ListVariableEnvironmentsConfig = ListVariableEnvironmentsConfig>(
+  config: Config & { fields: Fields }
+): Promise<ListVariableEnvironmentsResult<Fields, Config["page"]>> {
+  const payload = {
+    action: "list_variable_environments",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    ...(config.fields !== undefined && { fields: config.fields }),
+    ...(config.filter && { filter: config.filter }),
+    ...(config.sort && { sort: config.sort }),
+    ...(config.page && { page: config.page })
+  };
+
+  return executeActionRpcRequest<ListVariableEnvironmentsResult<Fields, Config["page"]>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Read VariableEnvironment records
+ *
+ * @ashActionType :read
+ * @validation true
+ */
+export async function validateListVariableEnvironments(
+  config: {
+  tenant?: string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "list_variable_environments",
+    ...(config.tenant !== undefined && { tenant: config.tenant })
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type CreateVariableEnvironmentInput = {
+  variableId: UUID;
+  environmentId: UUID;
+  regularValue?: string | null;
+  secretValue?: string;
+};
+
+export type CreateVariableEnvironmentFields = UnifiedFieldSelection<VariableEnvironmentResourceSchema>[];
+
+export type InferCreateVariableEnvironmentResult<
+  Fields extends CreateVariableEnvironmentFields | undefined,
+> = InferResult<VariableEnvironmentResourceSchema, Fields>;
+
+export type CreateVariableEnvironmentResult<Fields extends CreateVariableEnvironmentFields | undefined = undefined> = | { success: true; data: InferCreateVariableEnvironmentResult<Fields>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Create a new VariableEnvironment
+ *
+ * @ashActionType :create
+ */
+export async function createVariableEnvironment<Fields extends CreateVariableEnvironmentFields | undefined = undefined>(
+  config: {
+  tenant?: string;
+  input: CreateVariableEnvironmentInput;
+  fields?: Fields;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<CreateVariableEnvironmentResult<Fields extends undefined ? [] : Fields>> {
+  const payload = {
+    action: "create_variable_environment",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input,
+    ...(config.fields !== undefined && { fields: config.fields })
+  };
+
+  return executeActionRpcRequest<CreateVariableEnvironmentResult<Fields extends undefined ? [] : Fields>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Create a new VariableEnvironment
+ *
+ * @ashActionType :create
+ * @validation true
+ */
+export async function validateCreateVariableEnvironment(
+  config: {
+  tenant?: string;
+  input: CreateVariableEnvironmentInput;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "create_variable_environment",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+export type UpdateVariableEnvironmentInput = {
+  regularValue?: string | null;
+  secretValue?: string;
+};
+
+export type UpdateVariableEnvironmentFields = UnifiedFieldSelection<VariableEnvironmentResourceSchema>[];
+
+export type InferUpdateVariableEnvironmentResult<
+  Fields extends UpdateVariableEnvironmentFields | undefined,
+> = InferResult<VariableEnvironmentResourceSchema, Fields>;
+
+export type UpdateVariableEnvironmentResult<Fields extends UpdateVariableEnvironmentFields | undefined = undefined> = | { success: true; data: InferUpdateVariableEnvironmentResult<Fields>; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Update an existing VariableEnvironment
+ *
+ * @ashActionType :update
+ */
+export async function updateVariableEnvironment<Fields extends UpdateVariableEnvironmentFields | undefined = undefined>(
+  config: {
+  tenant?: string;
+  identity: UUID;
+  input?: UpdateVariableEnvironmentInput;
+  fields?: Fields;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<UpdateVariableEnvironmentResult<Fields extends undefined ? [] : Fields>> {
+  const payload = {
+    action: "update_variable_environment",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity,
+    input: config.input,
+    ...(config.fields !== undefined && { fields: config.fields })
+  };
+
+  return executeActionRpcRequest<UpdateVariableEnvironmentResult<Fields extends undefined ? [] : Fields>>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Update an existing VariableEnvironment
+ *
+ * @ashActionType :update
+ * @validation true
+ */
+export async function validateUpdateVariableEnvironment(
+  config: {
+  tenant?: string;
+  identity: UUID | string;
+  input?: UpdateVariableEnvironmentInput;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "update_variable_environment",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity,
+    input: config.input
+  };
+
+  return executeValidationRpcRequest<ValidationResult>(
+    payload,
+    config
+  );
+}
+
+
+
+export type DestroyVariableEnvironmentResult = | { success: true; data: {}; }
+| { success: false; errors: AshRpcError[]; }
+
+;
+
+/**
+ * Delete a VariableEnvironment
+ *
+ * @ashActionType :destroy
+ */
+export async function destroyVariableEnvironment(
+  config: {
+  tenant?: string;
+  identity: UUID;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<DestroyVariableEnvironmentResult> {
+  const payload = {
+    action: "destroy_variable_environment",
+    ...(config.tenant !== undefined && { tenant: config.tenant }),
+    identity: config.identity
+  };
+
+  return executeActionRpcRequest<DestroyVariableEnvironmentResult>(
+    payload,
+    config
+  );
+}
+
+
+/**
+ * Validate: Delete a VariableEnvironment
+ *
+ * @ashActionType :destroy
+ * @validation true
+ */
+export async function validateDestroyVariableEnvironment(
+  config: {
+  tenant?: string;
+  identity: UUID | string;
+  headers?: Record<string, string>;
+  fetchOptions?: RequestInit;
+  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+): Promise<ValidationResult> {
+  const payload = {
+    action: "destroy_variable_environment",
     ...(config.tenant !== undefined && { tenant: config.tenant }),
     identity: config.identity
   };

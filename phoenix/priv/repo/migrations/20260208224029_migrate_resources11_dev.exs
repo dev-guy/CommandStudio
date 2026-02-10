@@ -10,7 +10,9 @@ defmodule Cs.Repo.Migrations.MigrateResources11 do
   def up do
     drop_if_exists unique_index(
                      :command_schedule_environments,
-                     [:command_schedule_id, :environment_id], name: "cmd_sched_env_uidx")
+                     [:command_schedule_id, :environment_id],
+                     name: "cmd_sched_env_uidx"
+                   )
 
     create unique_index(:command_schedule_environments, [:environment_id, :command_schedule_id],
              name: "command_schedule_environments_unique_link_index"

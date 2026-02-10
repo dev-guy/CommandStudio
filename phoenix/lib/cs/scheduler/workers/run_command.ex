@@ -11,11 +11,12 @@ defmodule Cs.Scheduler.Workers.RunCommand do
     with {:ok, command_job} <- fetch_command_job(command_job_id),
          {:ok, command} <- fetch_command(command_job.command_id),
          {:ok, environment} <- fetch_environment(command_job.environment_id),
-         {rendered_command, env_pairs} <- build_command_input(command_job, command, environment),
+         {execution_command, display_command, env_pairs} <-
+           build_command_input(command_job, command, environment),
          {:ok, started_at} <- DateTime.now("Etc/UTC"),
-         :ok <- maybe_mark_started(command_job.id, started_at, rendered_command),
+         :ok <- maybe_mark_started(command_job.id, started_at, display_command),
          {:ok, _event} <- create_started_event(command_job.id, started_at),
-         result = CommandRunner.run(rendered_command, env_pairs, command.timeout_ms),
+         result = CommandRunner.run(execution_command, env_pairs, command.timeout_ms),
          {:ok, finished_at} <- DateTime.now("Etc/UTC"),
          :ok <- maybe_mark_finished(command_job.id, finished_at),
          duration_ms = DateTime.diff(finished_at, started_at, :millisecond),
@@ -52,7 +53,9 @@ defmodule Cs.Scheduler.Workers.RunCommand do
   end
 
   defp fetch_environment(environment_id) do
-    Scheduler.get_environment(environment_id, load: [variables: [:value]])
+    Scheduler.get_environment(environment_id,
+      load: [variable_environments: [:regular_value, :secret_value, variable: [:name]]]
+    )
   end
 
   defp create_started_event(command_job_id, started_at) do
@@ -66,12 +69,29 @@ defmodule Cs.Scheduler.Workers.RunCommand do
   end
 
   defp build_command_input(command_job, command, environment) do
-    variables =
-      Enum.reduce(environment.variables, %{}, fn variable, acc ->
-        Map.put(acc, variable.name, variable.value)
+    execution_variables =
+      Enum.reduce(environment.variable_environments, %{}, fn variable_environment, acc ->
+        value = execution_value(variable_environment)
+
+        if is_nil(value) do
+          acc
+        else
+          Map.put(acc, to_string(variable_environment.variable.name), value)
+        end
       end)
 
-    env_pairs = Enum.map(variables, fn {name, value} -> {name, value} end)
+    display_variables =
+      Enum.reduce(environment.variable_environments, %{}, fn variable_environment, acc ->
+        value = display_value(variable_environment)
+
+        if is_nil(value) do
+          acc
+        else
+          Map.put(acc, to_string(variable_environment.variable.name), value)
+        end
+      end)
+
+    env_pairs = Enum.map(execution_variables, fn {name, value} -> {name, value} end)
 
     command_template =
       if command_job.shell_command == "" do
@@ -80,10 +100,30 @@ defmodule Cs.Scheduler.Workers.RunCommand do
         command_job.shell_command
       end
 
-    rendered_command = CommandRunner.interpolate_command(command_template, variables)
+    execution_command = CommandRunner.interpolate_command(command_template, execution_variables)
+    display_command = CommandRunner.interpolate_command(command_template, display_variables)
 
-    {rendered_command, env_pairs}
+    {execution_command, display_command, env_pairs}
   end
+
+  defp execution_value(variable_environment) do
+    if present?(variable_environment.secret_value) do
+      variable_environment.secret_value
+    else
+      variable_environment.regular_value
+    end
+  end
+
+  defp display_value(variable_environment) do
+    if present?(variable_environment.secret_value) do
+      nil
+    else
+      variable_environment.regular_value
+    end
+  end
+
+  defp present?(value) when is_binary(value), do: value != ""
+  defp present?(_value), do: false
 
   defp create_completion_event(command_job_id, started_at, finished_at, duration_ms, result) do
     {status, stdout, stderr} =

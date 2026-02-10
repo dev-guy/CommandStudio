@@ -5,20 +5,13 @@ defmodule Cs.Scheduler.Variable do
     otp_app: :cs,
     domain: Cs.Scheduler,
     data_layer: AshPostgres.DataLayer,
-    extensions: [AshCloak, AshTypescript.Resource]
+    extensions: [AshTypescript.Resource]
+
+  alias Cs.Scheduler.VariableEnvironment
 
   postgres do
     table "variables"
     repo Cs.Repo
-
-    references do
-      reference :environment, on_delete: :delete
-    end
-  end
-
-  cloak do
-    vault(Cs.Vault)
-    attributes([:value])
   end
 
   typescript do
@@ -30,27 +23,21 @@ defmodule Cs.Scheduler.Variable do
 
     create :create do
       primary? true
-      accept [:name, :value, :environment_id]
+      accept [:name]
     end
 
     update :update do
       primary? true
-      accept [:name, :value]
+      accept [:name]
     end
   end
 
   attributes do
     uuid_primary_key :id
 
-    attribute :name, :string do
+    attribute :name, :ci_string do
       allow_nil? false
-      constraints match: ~r/^[A-Z][A-Z0-9_]*$/
-      public? true
-    end
-
-    attribute :value, :string do
-      allow_nil? false
-      sensitive? true
+      constraints match: ~r/^[A-Za-z][A-Za-z0-9_]*$/
       public? true
     end
 
@@ -59,13 +46,20 @@ defmodule Cs.Scheduler.Variable do
   end
 
   relationships do
-    belongs_to :environment, Cs.Scheduler.Environment do
-      allow_nil? false
+    many_to_many :environments, Cs.Scheduler.Environment do
+      through VariableEnvironment
+      source_attribute_on_join_resource :variable_id
+      destination_attribute_on_join_resource :environment_id
+      public? true
+    end
+
+    has_many :variable_environments, VariableEnvironment do
+      destination_attribute :variable_id
       public? true
     end
   end
 
   identities do
-    identity :unique_name_per_environment, [:environment_id, :name]
+    identity :unique_name, [:name]
   end
 end
