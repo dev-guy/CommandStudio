@@ -13,18 +13,6 @@
       "type": "uuid"
     },
     {
-      "allow_nil?": true,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "value",
-      "type": "text"
-    },
-    {
       "allow_nil?": false,
       "default": "fragment(\"(now() AT TIME ZONE 'utc')\")",
       "generated?": false,
@@ -109,18 +97,6 @@
       "size": null,
       "source": "environment_id",
       "type": "uuid"
-    },
-    {
-      "allow_nil?": true,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "secret_value",
-      "type": "binary"
     }
   ],
   "base_filter": null,
@@ -129,7 +105,7 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "6480162679902F9562D232106545305B33E941FF0C3050EEBE3A64D097466A69",
+  "hash": "DBB654B6D556E5F05FFECF4077EBEA5F979729EBED8B742021DA7B62D9619BA6",
   "identities": [
     {
       "all_tenants?": false,

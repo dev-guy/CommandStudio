@@ -5,7 +5,7 @@ defmodule Cs.Scheduler.VariableEnvironment do
     otp_app: :cs,
     domain: Cs.Scheduler,
     data_layer: AshPostgres.DataLayer,
-    extensions: [AshCloak, AshTypescript.Resource]
+    extensions: [AshTypescript.Resource]
 
   postgres do
     table "variable_environments"
@@ -17,11 +17,6 @@ defmodule Cs.Scheduler.VariableEnvironment do
     end
   end
 
-  cloak do
-    vault(Cs.Vault)
-    attributes([:secret_value])
-  end
-
   typescript do
     type_name "VariableEnvironment"
   end
@@ -31,28 +26,12 @@ defmodule Cs.Scheduler.VariableEnvironment do
 
     create :create do
       primary? true
-      accept [:variable_id, :environment_id, :regular_value, :secret_value]
-    end
-
-    update :update do
-      primary? true
-      accept [:regular_value, :secret_value]
+      accept [:variable_id, :environment_id]
     end
   end
 
   attributes do
     uuid_primary_key :id
-
-    attribute :regular_value, :string do
-      allow_nil? true
-      public? true
-    end
-
-    attribute :secret_value, :string do
-      allow_nil? true
-      sensitive? true
-      public? true
-    end
 
     create_timestamp :created_at
     update_timestamp :updated_at

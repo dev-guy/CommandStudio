@@ -10,9 +10,9 @@ defmodule Cs.Scheduler.Workers.RunCommand do
   def perform(%Oban.Job{args: %{"command_job_id" => command_job_id}}) do
     with {:ok, command_job} <- fetch_command_job(command_job_id),
          {:ok, command} <- fetch_command(command_job.command_id),
-         {:ok, environment} <- fetch_environment(command_job.environment_id),
+         {:ok, _environment} <- fetch_environment(command_job.environment_id),
          {execution_command, display_command, env_pairs} <-
-           build_command_input(command_job, command, environment),
+           build_command_input(command_job, command),
          {:ok, started_at} <- DateTime.now("Etc/UTC"),
          :ok <- maybe_mark_started(command_job.id, started_at, display_command),
          {:ok, _event} <- create_started_event(command_job.id, started_at),
@@ -53,9 +53,7 @@ defmodule Cs.Scheduler.Workers.RunCommand do
   end
 
   defp fetch_environment(environment_id) do
-    Scheduler.get_environment(environment_id,
-      load: [variable_environments: [:regular_value, :secret_value, variable: [:name]]]
-    )
+    Scheduler.get_environment(environment_id)
   end
 
   defp create_started_event(command_job_id, started_at) do
@@ -68,29 +66,8 @@ defmodule Cs.Scheduler.Workers.RunCommand do
     })
   end
 
-  defp build_command_input(command_job, command, environment) do
-    execution_variables =
-      Enum.reduce(environment.variable_environments, %{}, fn variable_environment, acc ->
-        value = execution_value(variable_environment)
-
-        if is_nil(value) do
-          acc
-        else
-          Map.put(acc, to_string(variable_environment.variable.name), value)
-        end
-      end)
-
-    display_variables =
-      Enum.reduce(environment.variable_environments, %{}, fn variable_environment, acc ->
-        value = display_value(variable_environment)
-
-        if is_nil(value) do
-          acc
-        else
-          Map.put(acc, to_string(variable_environment.variable.name), value)
-        end
-      end)
-
+  defp build_command_input(command_job, command) do
+    execution_variables = resolve_variables(command_job.environment_id)
     env_pairs = Enum.map(execution_variables, fn {name, value} -> {name, value} end)
 
     command_template =
@@ -101,25 +78,55 @@ defmodule Cs.Scheduler.Workers.RunCommand do
       end
 
     execution_command = CommandRunner.interpolate_command(command_template, execution_variables)
-    display_command = CommandRunner.interpolate_command(command_template, display_variables)
+    display_command = command_template
 
     {execution_command, display_command, env_pairs}
   end
 
-  defp execution_value(variable_environment) do
-    if present?(variable_environment.secret_value) do
-      variable_environment.secret_value
-    else
-      variable_environment.regular_value
+  defp resolve_variables(environment_id) do
+    case Scheduler.list_variables(
+           query: [
+             load: [:value, :secret_value, variable_environments: [:environment_id]],
+             sort: [created_at: :desc]
+           ]
+         ) do
+      {:ok, variables} ->
+        scoped_variables =
+          Enum.filter(variables, fn variable ->
+            Enum.any?(variable.variable_environments, &(&1.environment_id == environment_id))
+          end)
+
+        default_variables =
+          Enum.filter(variables, fn variable ->
+            variable.variable_environments == []
+          end)
+
+        default_variables
+        |> variable_map()
+        |> Map.merge(variable_map(scoped_variables))
+
+      {:error, _reason} ->
+        %{}
     end
   end
 
-  defp display_value(variable_environment) do
-    if present?(variable_environment.secret_value) do
-      nil
-    else
-      variable_environment.regular_value
-    end
+  defp variable_map(variables) do
+    Enum.reduce(variables, %{}, fn variable, acc ->
+      resolved_value =
+        if present?(variable.secret_value) do
+          variable.secret_value
+        else
+          variable.value
+        end
+
+      variable_name = variable.name |> to_string() |> String.downcase()
+
+      if present?(resolved_value) do
+        Map.put_new(acc, variable_name, resolved_value)
+      else
+        acc
+      end
+    end)
   end
 
   defp present?(value) when is_binary(value), do: value != ""

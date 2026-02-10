@@ -23,12 +23,12 @@ defmodule Cs.Scheduler.Variable do
 
     create :create do
       primary? true
-      accept [:name]
+      accept [:name, :description, :value, :secret_value]
     end
 
     update :update do
       primary? true
-      accept [:name]
+      accept [:name, :description, :value, :secret_value]
     end
   end
 
@@ -38,6 +38,22 @@ defmodule Cs.Scheduler.Variable do
     attribute :name, :ci_string do
       allow_nil? false
       constraints match: ~r/^[A-Za-z][A-Za-z0-9_]*$/
+      public? true
+    end
+
+    attribute :description, :string do
+      allow_nil? true
+      public? true
+    end
+
+    attribute :value, :string do
+      allow_nil? true
+      public? true
+    end
+
+    attribute :secret_value, :string do
+      allow_nil? true
+      sensitive? true
       public? true
     end
 
@@ -57,9 +73,5 @@ defmodule Cs.Scheduler.Variable do
       destination_attribute :variable_id
       public? true
     end
-  end
-
-  identities do
-    identity :unique_name, [:name]
   end
 end

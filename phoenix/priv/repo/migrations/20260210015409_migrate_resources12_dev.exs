@@ -10,7 +10,7 @@ defmodule Cs.Repo.Migrations.MigrateResources12 do
   def up do
     create table(:variable_environments, primary_key: false) do
       add :id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true
-      add :regular_value, :text
+      add :value, :text
 
       add :created_at, :utc_datetime_usec,
         null: false,
@@ -40,7 +40,7 @@ defmodule Cs.Repo.Migrations.MigrateResources12 do
           ),
           null: false
 
-      add :encrypted_secret_value, :binary
+      add :secret_value, :binary
     end
 
     create unique_index(:variable_environments, [:environment_id, :variable_id],
@@ -52,7 +52,7 @@ defmodule Cs.Repo.Migrations.MigrateResources12 do
       id,
       variable_id,
       environment_id,
-      encrypted_secret_value,
+      secret_value,
       created_at,
       updated_at
     )

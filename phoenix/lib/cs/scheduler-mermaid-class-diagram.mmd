@@ -1,0 +1,155 @@
+classDiagram
+    class Environment {
+        UUID id
+        CiString name
+        Boolean enabled
+        CommandSchedule[] command_schedules
+        Variable[] variables
+        CommandScheduleEnvironment[] command_schedule_environments
+        CommandJob[] command_jobs
+        VariableEnvironment[] variable_environments
+        destroy()
+        read()
+        create(CiString name, Boolean enabled)
+        update(CiString name, Boolean enabled)
+        by_name(CiString name)
+        enabled()
+    }
+    class Cron {
+        UUID id
+        String name
+        String crontab_expression
+        Boolean enabled
+        CommandSchedule[] command_schedules
+        CommandScheduleCron[] command_schedule_crons
+        CommandJob[] command_jobs
+        destroy()
+        read()
+        create(String name, String crontab_expression, Boolean enabled)
+        update(String name, String crontab_expression, Boolean enabled)
+    }
+    class CommandSchedule {
+        UUID id
+        Boolean enabled
+        UUID command_id
+        Command command
+        Environment[] environments
+        Cron[] crons
+        CommandScheduleEnvironment[] command_schedule_environments
+        CommandScheduleCron[] command_schedule_crons
+        destroy()
+        read()
+        create(UUID command_id, Boolean enabled)
+        update(UUID command_id, Boolean enabled)
+    }
+    class CommandScheduleEnvironment {
+        UUID id
+        UUID command_schedule_id
+        UUID environment_id
+        CommandSchedule command_schedule
+        Environment environment
+        destroy()
+        read()
+        create(UUID command_schedule_id, UUID environment_id)
+    }
+    class CommandScheduleCron {
+        UUID id
+        UUID command_schedule_id
+        UUID cron_id
+        CommandSchedule command_schedule
+        Cron cron
+        destroy()
+        read()
+        create(UUID command_schedule_id, UUID cron_id)
+    }
+    class Variable {
+        UUID id
+        CiString name
+        String description
+        String value
+        String secret_value
+        Environment[] environments
+        VariableEnvironment[] variable_environments
+        destroy()
+        read()
+        create(CiString name, String description, String value, String secret_value)
+        update(CiString name, String description, String value, String secret_value)
+    }
+    class VariableEnvironment {
+        UUID id
+        UUID variable_id
+        UUID environment_id
+        Variable variable
+        Environment environment
+        destroy()
+        read()
+        create(UUID variable_id, UUID environment_id)
+    }
+    class Command {
+        UUID id
+        CiString name
+        String shell_command
+        Boolean enabled
+        Integer timeout_ms
+        CommandJob[] command_jobs
+        CommandSchedule[] command_schedules
+        destroy()
+        read()
+        create(CiString name, String shell_command, Boolean enabled, Integer timeout_ms)
+        update(CiString name, String shell_command, Boolean enabled, Integer timeout_ms)
+        enabled()
+        enqueue_run(UUID id, UUID environment_id)
+        enqueue_run_in(UUID id, UUID environment_id, Integer delay_seconds)
+        enqueue_run_force(UUID id, UUID environment_id)
+        retry_last_failed(UUID id)
+    }
+    class CommandJobEvent {
+        UUID id
+        String status
+        UtcDatetimeUsec started_at
+        UtcDatetimeUsec finished_at
+        Integer duration_ms
+        String stdout
+        String stderr
+        UtcDatetimeUsec created_at
+        UUID command_job_id
+        CommandJob command_job
+        read()
+        create(UUID command_job_id, String status, UtcDatetimeUsec started_at, UtcDatetimeUsec finished_at, ...)
+        for_command(UUID command_id)
+        retry(UUID id)
+    }
+    class CommandJob {
+        UUID id
+        Integer oban_job_id
+        String shell_command
+        String cron_expression
+        UtcDatetimeUsec started_at
+        UtcDatetimeUsec finished_at
+        UUID command_id
+        UUID environment_id
+        UUID cron_id
+        Command command
+        Environment environment
+        Cron cron
+        CommandJobEvent[] command_job_events
+        destroy()
+        read()
+        create(UUID command_id, UUID environment_id, UUID cron_id, Integer oban_job_id, ...)
+        update(Integer oban_job_id, String shell_command, String cron_expression, UtcDatetimeUsec started_at, ...)
+    }
+
+    Command -- CommandJob
+    Command -- CommandSchedule
+    CommandJob -- CommandJobEvent
+    CommandJob -- Cron
+    CommandJob -- Environment
+    CommandSchedule -- CommandScheduleCron
+    CommandSchedule -- CommandScheduleEnvironment
+    CommandSchedule -- Cron
+    CommandSchedule -- Environment
+    CommandScheduleCron -- Cron
+    CommandScheduleEnvironment -- Environment
+    Environment -- Variable
+    Environment -- VariableEnvironment
+    Variable -- VariableEnvironment
