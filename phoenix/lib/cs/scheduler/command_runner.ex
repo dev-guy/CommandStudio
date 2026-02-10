@@ -6,10 +6,16 @@ defmodule Cs.Scheduler.CommandRunner do
 
   @spec interpolate_command(String.t(), map()) :: String.t()
   def interpolate_command(shell_command, variables) when is_binary(shell_command) and is_map(variables) do
-    Regex.replace(~r/\$([A-Z][A-Z0-9_]*)/, shell_command, fn _full, variable_name ->
-      Map.get(variables, variable_name, "$#{variable_name}")
+    normalized_variables =
+      Map.new(variables, fn {name, value} -> {normalize_name(name), value} end)
+
+    Regex.replace(~r/\$([A-Za-z][A-Za-z0-9_]*)/, shell_command, fn _full, variable_name ->
+      Map.get(normalized_variables, normalize_name(variable_name), "$#{variable_name}")
     end)
   end
+
+  defp normalize_name(name) when is_binary(name), do: String.downcase(name)
+  defp normalize_name(name), do: name |> to_string() |> String.downcase()
 
   @spec run(String.t(), keyword(), non_neg_integer()) ::
           {:ok, command_result()} | {:error, String.t(), command_result()}

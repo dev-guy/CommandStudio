@@ -113,7 +113,7 @@ defmodule Cs.Scheduler.Command do
   attributes do
     uuid_primary_key :id
 
-    attribute :name, :string do
+    attribute :name, :ci_string do
       allow_nil? false
       public? true
     end

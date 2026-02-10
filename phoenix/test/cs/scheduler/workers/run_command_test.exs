@@ -8,11 +8,17 @@ defmodule Cs.Scheduler.Workers.RunCommandTest do
     environment =
       Scheduler.create_environment!(%{name: "test-env-#{System.unique_integer([:positive])}"})
 
-    _variable =
+    variable =
       Scheduler.create_variable!(%{
+        name: "NAME"
+      })
+
+    _variable_environment =
+      Scheduler.create_variable_environment!(%{
+        variable_id: variable.id,
         environment_id: environment.id,
-        name: "NAME",
-        value: "world"
+        regular_value: "world",
+        secret_value: "secret-world"
       })
 
     command =
@@ -60,10 +66,10 @@ defmodule Cs.Scheduler.Workers.RunCommandTest do
     assert Enum.count(events) == 2
     assert Enum.at(events, 0).status == "started"
     assert Enum.at(events, 1).status == "succeeded"
-    assert Enum.at(events, 1).stdout == "hello-world"
+    assert Enum.at(events, 1).stdout == "hello-secret-world"
 
     updated_command_job = Scheduler.get_command_job!(command_job.id)
-    assert updated_command_job.shell_command == "printf 'hello-world'"
+    assert updated_command_job.shell_command == "printf 'hello-$NAME'"
     assert updated_command_job.started_at
     assert updated_command_job.finished_at
   end

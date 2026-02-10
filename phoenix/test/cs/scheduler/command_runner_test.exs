@@ -10,6 +10,14 @@ defmodule Cs.Scheduler.CommandRunnerTest do
     assert "echo alpha-beta-$MISSING" = CommandRunner.interpolate_command(command, variables)
   end
 
+  test "interpolate_command matches variable names case-insensitively" do
+    command = "echo $foo-$BAR-$bAz-$MISSING"
+    variables = %{"FOO" => "alpha", "bar" => "beta", "Baz" => "gamma"}
+
+    assert "echo alpha-beta-gamma-$MISSING" =
+             CommandRunner.interpolate_command(command, variables)
+  end
+
   test "run captures stdout and stderr separately for successful commands" do
     shell_command = "printf 'hello'; printf 'oops' 1>&2"
 

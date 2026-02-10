@@ -7,6 +7,9 @@ defmodule Cs.Scheduler.Environment do
     data_layer: AshPostgres.DataLayer,
     extensions: [AshTypescript.Resource]
 
+  alias Cs.Scheduler.CommandScheduleEnvironment
+  alias Cs.Scheduler.VariableEnvironment
+
   postgres do
     table "environments"
     repo Cs.Repo
@@ -30,7 +33,7 @@ defmodule Cs.Scheduler.Environment do
     end
 
     read :by_name do
-      argument :name, :string, allow_nil?: false
+      argument :name, :ci_string, allow_nil?: false
       get? true
       filter expr(name == ^arg(:name))
     end
@@ -43,7 +46,7 @@ defmodule Cs.Scheduler.Environment do
   attributes do
     uuid_primary_key :id
 
-    attribute :name, :string do
+    attribute :name, :ci_string do
       allow_nil? false
       public? true
     end
@@ -59,24 +62,31 @@ defmodule Cs.Scheduler.Environment do
   end
 
   relationships do
-    has_many :variables, Cs.Scheduler.Variable do
-      destination_attribute :environment_id
-      public? true
-    end
-
     many_to_many :command_schedules, Cs.Scheduler.CommandSchedule do
-      through Cs.Scheduler.CommandScheduleEnvironment
+      through CommandScheduleEnvironment
       source_attribute_on_join_resource :environment_id
       destination_attribute_on_join_resource :command_schedule_id
       public? true
     end
 
-    has_many :command_schedule_environments, Cs.Scheduler.CommandScheduleEnvironment do
+    many_to_many :variables, Cs.Scheduler.Variable do
+      through VariableEnvironment
+      source_attribute_on_join_resource :environment_id
+      destination_attribute_on_join_resource :variable_id
+      public? true
+    end
+
+    has_many :command_schedule_environments, CommandScheduleEnvironment do
       destination_attribute :environment_id
       public? true
     end
 
     has_many :command_jobs, Cs.Scheduler.CommandJob do
+      destination_attribute :environment_id
+      public? true
+    end
+
+    has_many :variable_environments, VariableEnvironment do
       destination_attribute :environment_id
       public? true
     end

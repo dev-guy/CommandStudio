@@ -7,6 +7,8 @@ defmodule Cs.Scheduler.Cron do
     data_layer: AshPostgres.DataLayer,
     extensions: [AshTypescript.Resource]
 
+  alias Cs.Scheduler.CommandScheduleCron
+
   postgres do
     table "crons"
     repo Cs.Repo
@@ -56,13 +58,13 @@ defmodule Cs.Scheduler.Cron do
 
   relationships do
     many_to_many :command_schedules, Cs.Scheduler.CommandSchedule do
-      through Cs.Scheduler.CommandScheduleCron
+      through CommandScheduleCron
       source_attribute_on_join_resource :cron_id
       destination_attribute_on_join_resource :command_schedule_id
       public? true
     end
 
-    has_many :command_schedule_crons, Cs.Scheduler.CommandScheduleCron do
+    has_many :command_schedule_crons, CommandScheduleCron do
       destination_attribute :cron_id
       public? true
     end
