@@ -130,9 +130,12 @@ export type CommandScheduleCronAttributesOnlySchema = {
 // Variable Schema
 export type VariableResourceSchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "name";
+  __primitiveFields: "id" | "name" | "description" | "value" | "secretValue";
   id: UUID;
   name: string;
+  description: string | null;
+  value: string | null;
+  secretValue: string | null;
   environments: { __type: "Relationship"; __array: true; __resource: EnvironmentResourceSchema; };
   variableEnvironments: { __type: "Relationship"; __array: true; __resource: VariableEnvironmentResourceSchema; };
 };
@@ -141,21 +144,22 @@ export type VariableResourceSchema = {
 
 export type VariableAttributesOnlySchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "name";
+  __primitiveFields: "id" | "name" | "description" | "value" | "secretValue";
   id: UUID;
   name: string;
+  description: string | null;
+  value: string | null;
+  secretValue: string | null;
 };
 
 
 // VariableEnvironment Schema
 export type VariableEnvironmentResourceSchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "regularValue" | "variableId" | "environmentId" | "secretValue";
+  __primitiveFields: "id" | "variableId" | "environmentId";
   id: UUID;
-  regularValue: string | null;
   variableId: UUID;
   environmentId: UUID;
-  secretValue: string | null;
   variable: { __type: "Relationship"; __resource: VariableResourceSchema; };
   environment: { __type: "Relationship"; __resource: EnvironmentResourceSchema; };
 };
@@ -164,9 +168,8 @@ export type VariableEnvironmentResourceSchema = {
 
 export type VariableEnvironmentAttributesOnlySchema = {
   __type: "Resource";
-  __primitiveFields: "id" | "regularValue" | "variableId" | "environmentId";
+  __primitiveFields: "id" | "variableId" | "environmentId";
   id: UUID;
-  regularValue: string | null;
   variableId: UUID;
   environmentId: UUID;
 };
@@ -448,6 +451,24 @@ export type VariableFilterInput = {
     in?: Array<string>;
   };
 
+  description?: {
+    eq?: string;
+    notEq?: string;
+    in?: Array<string>;
+  };
+
+  value?: {
+    eq?: string;
+    notEq?: string;
+    in?: Array<string>;
+  };
+
+  secretValue?: {
+    eq?: string;
+    notEq?: string;
+    in?: Array<string>;
+  };
+
 
   environments?: EnvironmentFilterInput;
 
@@ -465,12 +486,6 @@ export type VariableEnvironmentFilterInput = {
     in?: Array<UUID>;
   };
 
-  regularValue?: {
-    eq?: string;
-    notEq?: string;
-    in?: Array<string>;
-  };
-
   variableId?: {
     eq?: UUID;
     notEq?: UUID;
@@ -481,12 +496,6 @@ export type VariableEnvironmentFilterInput = {
     eq?: UUID;
     notEq?: UUID;
     in?: Array<UUID>;
-  };
-
-  secretValue?: {
-    eq?: string;
-    notEq?: string;
-    in?: Array<string>;
   };
 
 
@@ -2832,6 +2841,9 @@ export async function validateListVariables(
 
 export type CreateVariableInput = {
   name: string;
+  description?: string | null;
+  value?: string | null;
+  secretValue?: string | null;
 };
 
 export type CreateVariableFields = UnifiedFieldSelection<VariableResourceSchema>[];
@@ -2904,6 +2916,9 @@ export async function validateCreateVariable(
 
 export type UpdateVariableInput = {
   name?: string;
+  description?: string | null;
+  value?: string | null;
+  secretValue?: string | null;
 };
 
 export type UpdateVariableFields = UnifiedFieldSelection<VariableResourceSchema>[];
@@ -3143,8 +3158,6 @@ export async function validateListVariableEnvironments(
 export type CreateVariableEnvironmentInput = {
   variableId: UUID;
   environmentId: UUID;
-  regularValue?: string | null;
-  secretValue?: string;
 };
 
 export type CreateVariableEnvironmentFields = UnifiedFieldSelection<VariableEnvironmentResourceSchema>[];
@@ -3205,83 +3218,6 @@ export async function validateCreateVariableEnvironment(
   const payload = {
     action: "create_variable_environment",
     ...(config.tenant !== undefined && { tenant: config.tenant }),
-    input: config.input
-  };
-
-  return executeValidationRpcRequest<ValidationResult>(
-    payload,
-    config
-  );
-}
-
-
-export type UpdateVariableEnvironmentInput = {
-  regularValue?: string | null;
-  secretValue?: string;
-};
-
-export type UpdateVariableEnvironmentFields = UnifiedFieldSelection<VariableEnvironmentResourceSchema>[];
-
-export type InferUpdateVariableEnvironmentResult<
-  Fields extends UpdateVariableEnvironmentFields | undefined,
-> = InferResult<VariableEnvironmentResourceSchema, Fields>;
-
-export type UpdateVariableEnvironmentResult<Fields extends UpdateVariableEnvironmentFields | undefined = undefined> = | { success: true; data: InferUpdateVariableEnvironmentResult<Fields>; }
-| { success: false; errors: AshRpcError[]; }
-
-;
-
-/**
- * Update an existing VariableEnvironment
- *
- * @ashActionType :update
- */
-export async function updateVariableEnvironment<Fields extends UpdateVariableEnvironmentFields | undefined = undefined>(
-  config: {
-  tenant?: string;
-  identity: UUID;
-  input?: UpdateVariableEnvironmentInput;
-  fields?: Fields;
-  headers?: Record<string, string>;
-  fetchOptions?: RequestInit;
-  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-}
-): Promise<UpdateVariableEnvironmentResult<Fields extends undefined ? [] : Fields>> {
-  const payload = {
-    action: "update_variable_environment",
-    ...(config.tenant !== undefined && { tenant: config.tenant }),
-    identity: config.identity,
-    input: config.input,
-    ...(config.fields !== undefined && { fields: config.fields })
-  };
-
-  return executeActionRpcRequest<UpdateVariableEnvironmentResult<Fields extends undefined ? [] : Fields>>(
-    payload,
-    config
-  );
-}
-
-
-/**
- * Validate: Update an existing VariableEnvironment
- *
- * @ashActionType :update
- * @validation true
- */
-export async function validateUpdateVariableEnvironment(
-  config: {
-  tenant?: string;
-  identity: UUID | string;
-  input?: UpdateVariableEnvironmentInput;
-  headers?: Record<string, string>;
-  fetchOptions?: RequestInit;
-  customFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-}
-): Promise<ValidationResult> {
-  const payload = {
-    action: "update_variable_environment",
-    ...(config.tenant !== undefined && { tenant: config.tenant }),
-    identity: config.identity,
     input: config.input
   };
 

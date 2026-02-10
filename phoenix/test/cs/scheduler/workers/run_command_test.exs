@@ -10,15 +10,16 @@ defmodule Cs.Scheduler.Workers.RunCommandTest do
 
     variable =
       Scheduler.create_variable!(%{
-        name: "NAME"
+        name: "NAME",
+        value: "clear-world",
+        secret_value: "secret-world",
+        description: "test variable"
       })
 
     _variable_environment =
       Scheduler.create_variable_environment!(%{
         variable_id: variable.id,
-        environment_id: environment.id,
-        regular_value: "world",
-        secret_value: "secret-world"
+        environment_id: environment.id
       })
 
     command =
@@ -129,5 +130,134 @@ defmodule Cs.Scheduler.Workers.RunCommandTest do
     assert updated_command_job.shell_command == "printf 'boom' 1>&2; exit 42"
     assert updated_command_job.started_at
     assert updated_command_job.finished_at
+  end
+
+  test "perform falls back to default variable when environment-specific mapping is missing" do
+    environment =
+      Scheduler.create_environment!(%{name: "test-env-#{System.unique_integer([:positive])}"})
+
+    _default_variable =
+      Scheduler.create_variable!(%{
+        name: "NAME",
+        value: "default-world",
+        description: "fallback"
+      })
+
+    command =
+      Scheduler.create_command!(%{
+        name: "test-command-#{System.unique_integer([:positive])}",
+        shell_command: "printf 'hello-$name'",
+        timeout_ms: 5_000
+      })
+
+    cron =
+      Scheduler.create_cron!(%{
+        name: "test-cron-#{System.unique_integer([:positive])}",
+        crontab_expression: "* * * * *"
+      })
+
+    command_schedule = Scheduler.create_command_schedule!(%{command_id: command.id})
+
+    Scheduler.create_command_schedule_environment!(%{
+      command_schedule_id: command_schedule.id,
+      environment_id: environment.id
+    })
+
+    Scheduler.create_command_schedule_cron!(%{
+      command_schedule_id: command_schedule.id,
+      cron_id: cron.id
+    })
+
+    command_job =
+      Scheduler.create_command_job!(%{
+        command_id: command.id,
+        environment_id: environment.id,
+        cron_id: cron.id,
+        oban_job_id: 103
+      })
+
+    assert :ok =
+             RunCommand.perform(%Oban.Job{
+               id: 103,
+               args: %{"command_job_id" => command_job.id}
+             })
+
+    events =
+      Scheduler.list_command_job_events!(query: [filter: [command_job_id: command_job.id], sort: [started_at: :asc]])
+
+    assert Enum.at(events, 1).stdout == "hello-default-world"
+    assert Scheduler.get_command_job!(command_job.id).shell_command == "printf 'hello-$name'"
+  end
+
+  test "perform resolves scoped variable values case-insensitively and prefers scoped over default" do
+    environment =
+      Scheduler.create_environment!(%{name: "test-env-#{System.unique_integer([:positive])}"})
+
+    _default_variable =
+      Scheduler.create_variable!(%{
+        name: "api_key",
+        value: "default-api-key",
+        description: "default value"
+      })
+
+    scoped_variable =
+      Scheduler.create_variable!(%{
+        name: "API_KEY",
+        value: "scoped-clear",
+        secret_value: "scoped-secret",
+        description: "scoped value"
+      })
+
+    Scheduler.create_variable_environment!(%{
+      variable_id: scoped_variable.id,
+      environment_id: environment.id
+    })
+
+    command =
+      Scheduler.create_command!(%{
+        name: "test-command-#{System.unique_integer([:positive])}",
+        shell_command: "printf 'resolved-$aPi_KeY'",
+        timeout_ms: 5_000
+      })
+
+    cron =
+      Scheduler.create_cron!(%{
+        name: "test-cron-#{System.unique_integer([:positive])}",
+        crontab_expression: "* * * * *"
+      })
+
+    command_schedule = Scheduler.create_command_schedule!(%{command_id: command.id})
+
+    Scheduler.create_command_schedule_environment!(%{
+      command_schedule_id: command_schedule.id,
+      environment_id: environment.id
+    })
+
+    Scheduler.create_command_schedule_cron!(%{
+      command_schedule_id: command_schedule.id,
+      cron_id: cron.id
+    })
+
+    command_job =
+      Scheduler.create_command_job!(%{
+        command_id: command.id,
+        environment_id: environment.id,
+        cron_id: cron.id,
+        oban_job_id: 104
+      })
+
+    assert :ok =
+             RunCommand.perform(%Oban.Job{
+               id: 104,
+               args: %{"command_job_id" => command_job.id}
+             })
+
+    events =
+      Scheduler.list_command_job_events!(query: [filter: [command_job_id: command_job.id], sort: [started_at: :asc]])
+
+    assert Enum.at(events, 1).stdout == "resolved-scoped-secret"
+
+    assert Scheduler.get_command_job!(command_job.id).shell_command ==
+             "printf 'resolved-$aPi_KeY'"
   end
 end
