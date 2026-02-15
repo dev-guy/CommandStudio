@@ -180,6 +180,6 @@ Development did not start until AGENTS.md was generated via [Usage_Rules](https:
 
 ## React 
 
-1. TanStack Start was run by Codex. However, manual installation is recommended.
+1. TanStack Start was initialized by Codex. However, manual installation is recommended.
 2. I didn't specify using `class-variance-authority`. Models already know about it.
 3. `webapp/studio/eslint.config.js` was configured with `globalIgnores(['dist', 'src/lib/ash_rpc.ts'])` so ESLint skips the generated Ash RPC client file. Otherwise, eslint will report many errors.
