@@ -25,10 +25,11 @@ Configure and monitor the remote execution of remote shell commands with the abi
 
 The React application lets users:
 
-- Define commands (shell scripts) to run with constraints (currently only maximum execution time). Secrets can be emedded in commands by referring to them by name, such as `$secret_name`. Secrets can have one value per environment.
+- Define commands (shell scripts) to run with constraints (currently only maximum execution time). Secrets can be emedded in commands by referring to them by name, such as `$secret_name`.
 - Define execution environments
 - Manage encrypted secrets that can be embedded into commands securely
   - They don't appear, for example, in history files or `ps`
+  - Secrets can have one value per environment
 - Schedule commands to run on specified environments using crontab expressions
 - Monitor command execution events with filters and pagination
 - View additional details via Oban Web
