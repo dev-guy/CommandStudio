@@ -13,6 +13,8 @@ import {
   createCron,
   createEnvironment,
   createVariable,
+  createVariableEnvironment,
+  destroyVariableEnvironment,
   destroyCommandScheduleCron,
   destroyCommandScheduleEnvironment,
   listCommandJobEvents,
@@ -22,6 +24,7 @@ import {
   listCommands,
   listCrons,
   listEnvironments,
+  listVariableEnvironments,
   listVariables,
   updateCommand,
   updateCron,
@@ -62,6 +65,19 @@ export type CronRow = {
 export type VariableRow = {
   id: string;
   name: string;
+  description: string | null;
+  value: string | null;
+  secretValue: string | null;
+};
+
+export type VariableAssignmentRow = {
+  id: string;
+  variableId: string;
+  variable?: {
+    id: string;
+    name: string;
+    description?: string | null;
+  };
   environmentId: string;
   environment?: {
     id: string;
@@ -149,14 +165,26 @@ export type UpdateCronPayload = {
 
 export type CreateVariablePayload = {
   name: string;
-  value: string;
+  description?: string | null;
+  value?: string;
+  secretValue?: string;
+};
+
+export type CreateVariableAssignmentPayload = {
+  variableId: string;
   environmentId: string;
 };
 
 export type UpdateVariablePayload = {
   id: string;
   name?: string;
+  description?: string | null;
   value?: string;
+  secretValue?: string;
+};
+
+export type RemoveVariableAssignmentPayload = {
+  id: string;
 };
 
 export type CreateCommandPayload = {
@@ -223,7 +251,7 @@ export function useVariablesQuery() {
     queryKey: ["scheduler", "variables"],
     queryFn: async () => {
       const result = await listVariables({
-        fields: ["id", "name", "environmentId", { environment: ["id", "name", "enabled"] }],
+        fields: ["id", "name", "description", "value", "secretValue"],
         sort: "name",
         headers: rpcHeaders(),
       });
@@ -233,6 +261,43 @@ export function useVariablesQuery() {
       }
 
       return result.data as VariableRow[];
+    },
+  });
+}
+
+export function useVariableAssignmentsQuery() {
+  return useQuery({
+    queryKey: ["scheduler", "variable-assignments"],
+    queryFn: async () => {
+      const result = await listVariableEnvironments({
+        fields: [
+          "id",
+          "variableId",
+          "environmentId",
+          { variable: ["id", "name", "description"] },
+          { environment: ["id", "name", "enabled"] },
+        ],
+        sort: "id",
+        headers: rpcHeaders(),
+      });
+
+      if (!result.success) {
+        throw new Error(rpcErrorMessage(result.errors));
+      }
+
+      return asArray<{
+        id: string;
+        variableId: string;
+        environmentId: string;
+        variable?: { id: string; name: string; description?: string | null };
+        environment?: { id: string; name: string; enabled: boolean };
+      }>(result.data).map((row) => ({
+        id: row.id,
+        variableId: row.variableId,
+        variable: row.variable,
+        environmentId: row.environmentId,
+        environment: row.environment,
+      }));
     },
   });
 }
@@ -473,7 +538,33 @@ export function useCreateVariableMutation() {
     mutationFn: async (input: CreateVariablePayload) => {
       const result = await createVariable({
         input,
-        fields: ["id", "name", "environmentId"],
+        fields: ["id", "name", "description", "value", "secretValue"],
+        headers: rpcHeaders(),
+      });
+
+      if (!result.success) {
+        throw new Error(rpcErrorMessage(result.errors));
+      }
+
+      return result.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["scheduler"] });
+    },
+  });
+}
+
+export function useCreateVariableAssignmentMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ variableId, environmentId }: CreateVariableAssignmentPayload) => {
+      const result = await createVariableEnvironment({
+        input: {
+          variableId,
+          environmentId,
+        },
+        fields: ["id", "variableId", "environmentId"],
         headers: rpcHeaders(),
       });
 
@@ -497,7 +588,29 @@ export function useUpdateVariableMutation() {
       const result = await updateVariable({
         identity: id,
         input,
-        fields: ["id", "name", "environmentId"],
+        fields: ["id", "name", "description", "value", "secretValue"],
+        headers: rpcHeaders(),
+      });
+
+      if (!result.success) {
+        throw new Error(rpcErrorMessage(result.errors));
+      }
+
+      return result.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["scheduler"] });
+    },
+  });
+}
+
+export function useRemoveVariableAssignmentMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id }: RemoveVariableAssignmentPayload) => {
+      const result = await destroyVariableEnvironment({
+        identity: id,
         headers: rpcHeaders(),
       });
 

@@ -50,6 +50,7 @@ import {
   useCreateCommandScheduleMutation,
   useCreateCronMutation,
   useCreateEnvironmentMutation,
+  useCreateVariableAssignmentMutation,
   useCreateVariableMutation,
   useCronsQuery,
   useEnvironmentsQuery,
@@ -57,13 +58,17 @@ import {
   useUpdateCommandMutation,
   useUpdateCronMutation,
   useUpdateEnvironmentMutation,
+  useRemoveVariableAssignmentMutation,
   useUpdateVariableMutation,
+  useVariableAssignmentsQuery,
   useVariablesQuery,
 } from "@/features/scheduler/queries";
 
 type DashboardSection =
   | "overview"
   | "commands"
+  | "environments"
+  | "crons"
   | "scheduling"
   | "variables"
   | "events"
@@ -79,7 +84,9 @@ type SidebarItem = {
 const sidebarItems: SidebarItem[] = [
   { id: "overview", label: "Overview", helper: "System health", icon: Activity },
   { id: "commands", label: "Commands", helper: "Execution setup", icon: Terminal },
-  { id: "scheduling", label: "Scheduling", helper: "Crons + environments", icon: Clock3 },
+  { id: "environments", label: "Environments", helper: "Execution targets", icon: Activity },
+  { id: "crons", label: "Crons", helper: "Reusable schedules", icon: Clock3 },
+  { id: "scheduling", label: "Scheduling", helper: "Command mapping", icon: ArrowUpRight },
   { id: "variables", label: "Variables", helper: "Secrets inventory", icon: ShieldCheck },
   { id: "events", label: "Events", helper: "Search and timeline", icon: Search },
   { id: "oban", label: "Oban Web", helper: "Worker operations", icon: Activity },
@@ -139,6 +146,11 @@ const toTimeoutMs = (value: string, fallback = 60_000) => {
   return parsed;
 };
 
+const variableLabel = (variable: { id: string; name: string; description: string | null }) => {
+  const description = variable.description?.trim();
+  return description ? `${variable.name} - ${description}` : `${variable.name} - ${variable.id.slice(0, 8)}`;
+};
+
 export function SchedulerDashboard() {
   const navigate = useNavigate();
   const currentUser = useLoaderData() as AuthUser;
@@ -171,12 +183,18 @@ export function SchedulerDashboard() {
   >({});
 
   const [createVariableName, setCreateVariableName] = useState("");
+  const [createVariableDescription, setCreateVariableDescription] = useState("");
   const [createVariableValue, setCreateVariableValue] = useState("");
-  const [createVariableEnvironmentId, setCreateVariableEnvironmentId] = useState("");
-  const [updateVariableId, setUpdateVariableId] = useState("");
-  const [variableEdits, setVariableEdits] = useState<Record<string, { name: string; value: string }>>(
+  const [createVariableSecretValue, setCreateVariableSecretValue] = useState("");
+  const [assignmentVariableId, setAssignmentVariableId] = useState("");
+  const [assignmentEnvironmentEdits, setAssignmentEnvironmentEdits] = useState<Record<string, string[]>>(
     {},
   );
+  const [updateVariableId, setUpdateVariableId] = useState("");
+  const [variableEdits, setVariableEdits] = useState<
+    Record<string, { name: string; description: string; value: string; secretValue: string }>
+  >({});
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState("");
 
   const [createCommandName, setCreateCommandName] = useState("");
   const [createCommandShell, setCreateCommandShell] = useState("");
@@ -196,6 +214,7 @@ export function SchedulerDashboard() {
   const environmentsQuery = useEnvironmentsQuery();
   const cronsQuery = useCronsQuery();
   const variablesQuery = useVariablesQuery();
+  const variableAssignmentsQuery = useVariableAssignmentsQuery();
   const commandsQuery = useCommandsQuery();
   const commandSchedulesQuery = useCommandSchedulesQuery();
   const eventsQuery = useExecutionEventsQuery(250);
@@ -205,7 +224,9 @@ export function SchedulerDashboard() {
   const createCronMutation = useCreateCronMutation();
   const updateCronMutation = useUpdateCronMutation();
   const createVariableMutation = useCreateVariableMutation();
+  const createVariableAssignmentMutation = useCreateVariableAssignmentMutation();
   const updateVariableMutation = useUpdateVariableMutation();
+  const removeVariableAssignmentMutation = useRemoveVariableAssignmentMutation();
   const createCommandMutation = useCreateCommandMutation();
   const updateCommandMutation = useUpdateCommandMutation();
   const createCommandScheduleMutation = useCreateCommandScheduleMutation();
@@ -214,6 +235,7 @@ export function SchedulerDashboard() {
     environmentsQuery.isLoading ||
     cronsQuery.isLoading ||
     variablesQuery.isLoading ||
+    variableAssignmentsQuery.isLoading ||
     commandsQuery.isLoading ||
     commandSchedulesQuery.isLoading ||
     eventsQuery.isLoading;
@@ -221,6 +243,10 @@ export function SchedulerDashboard() {
   const environments = useMemo(() => environmentsQuery.data ?? [], [environmentsQuery.data]);
   const crons = useMemo(() => cronsQuery.data ?? [], [cronsQuery.data]);
   const variables = useMemo(() => variablesQuery.data ?? [], [variablesQuery.data]);
+  const variableAssignments = useMemo(
+    () => variableAssignmentsQuery.data ?? [],
+    [variableAssignmentsQuery.data],
+  );
   const commands = useMemo(() => commandsQuery.data ?? [], [commandsQuery.data]);
   const commandSchedules = useMemo(
     () => commandSchedulesQuery.data ?? [],
@@ -228,10 +254,11 @@ export function SchedulerDashboard() {
   );
   const events = useMemo(() => eventsQuery.data ?? [], [eventsQuery.data]);
 
-  const selectedCreateVariableEnvironmentId = createVariableEnvironmentId || environments[0]?.id || "";
   const selectedUpdateEnvironmentId = updateEnvironmentId || environments[0]?.id || "";
   const selectedUpdateCronId = updateCronId || crons[0]?.id || "";
+  const selectedAssignmentVariableId = assignmentVariableId || variables[0]?.id || "";
   const selectedUpdateVariableId = updateVariableId || variables[0]?.id || "";
+  const selectedVariableAssignmentId = selectedAssignmentId || variableAssignments[0]?.id || "";
   const selectedUpdateCommandId = updateCommandId || commands[0]?.id || "";
   const selectedScheduleCommandId = scheduleCommandId || commands[0]?.id || "";
 
@@ -240,6 +267,7 @@ export function SchedulerDashboard() {
   );
   const selectedCron = crons.find((cron) => cron.id === selectedUpdateCronId);
   const selectedVariable = variables.find((variable) => variable.id === selectedUpdateVariableId);
+  const selectedAssignmentVariable = variables.find((variable) => variable.id === selectedAssignmentVariableId);
   const selectedCommand = commands.find((command) => command.id === selectedUpdateCommandId);
   const selectedEnvironmentEdit = selectedEnvironment
     ? environmentEdits[selectedEnvironment.id]
@@ -256,7 +284,10 @@ export function SchedulerDashboard() {
     selectedCronEdit?.crontabExpression ?? selectedCron?.crontabExpression ?? "* * * * *";
   const updateCronEnabled = selectedCronEdit?.enabled ?? selectedCron?.enabled ?? true;
   const updateVariableName = selectedVariableEdit?.name ?? selectedVariable?.name ?? "";
-  const updateVariableValue = selectedVariableEdit?.value ?? "";
+  const updateVariableDescription =
+    selectedVariableEdit?.description ?? selectedVariable?.description ?? "";
+  const updateVariableValue = selectedVariableEdit?.value ?? selectedVariable?.value ?? "";
+  const updateVariableSecretValue = selectedVariableEdit?.secretValue ?? "";
   const updateCommandName = selectedCommandEdit?.name ?? selectedCommand?.name ?? "";
   const updateCommandShell = selectedCommandEdit?.shellCommand ?? selectedCommand?.shellCommand ?? "";
   const updateCommandTimeout =
@@ -337,7 +368,9 @@ export function SchedulerDashboard() {
     });
   };
 
-  const setVariableEdit = (patch: Partial<{ name: string; value: string }>) => {
+  const setVariableEdit = (
+    patch: Partial<{ name: string; description: string; value: string; secretValue: string }>,
+  ) => {
     if (!selectedVariable) {
       return;
     }
@@ -345,7 +378,9 @@ export function SchedulerDashboard() {
     setVariableEdits((current) => {
       const base = current[selectedVariable.id] ?? {
         name: selectedVariable.name,
-        value: "",
+        description: selectedVariable.description ?? "",
+        value: selectedVariable.value ?? "",
+        secretValue: "",
       };
 
       return {
@@ -381,6 +416,7 @@ export function SchedulerDashboard() {
     environmentsQuery.error?.message,
     cronsQuery.error?.message,
     variablesQuery.error?.message,
+    variableAssignmentsQuery.error?.message,
     commandsQuery.error?.message,
     commandSchedulesQuery.error?.message,
     eventsQuery.error?.message,
@@ -389,7 +425,9 @@ export function SchedulerDashboard() {
     createCronMutation.error?.message,
     updateCronMutation.error?.message,
     createVariableMutation.error?.message,
+    createVariableAssignmentMutation.error?.message,
     updateVariableMutation.error?.message,
+    removeVariableAssignmentMutation.error?.message,
     createCommandMutation.error?.message,
     updateCommandMutation.error?.message,
     createCommandScheduleMutation.error?.message,
@@ -490,6 +528,28 @@ export function SchedulerDashboard() {
     });
   }, [commandSearchTerm, commands, scheduleSummaryByCommandId]);
 
+  const variableAssignmentsByVariableId = useMemo(() => {
+    return variableAssignments.reduce<Record<string, typeof variableAssignments>>((acc, assignment) => {
+      const existing = acc[assignment.variableId] ?? [];
+      acc[assignment.variableId] = existing.concat(assignment);
+      return acc;
+    }, {});
+  }, [variableAssignments]);
+
+  const selectedAssignmentDefaultEnvironmentIds = useMemo(() => {
+    if (!selectedAssignmentVariableId) {
+      return [];
+    }
+
+    const knownEnvironmentIds = new Set(environments.map((environment) => environment.id));
+    return (variableAssignmentsByVariableId[selectedAssignmentVariableId] ?? [])
+      .map((assignment) => assignment.environmentId)
+      .filter((environmentId) => knownEnvironmentIds.has(environmentId));
+  }, [environments, selectedAssignmentVariableId, variableAssignmentsByVariableId]);
+
+  const selectedAssignmentEnvironmentIds =
+    assignmentEnvironmentEdits[selectedAssignmentVariableId] ?? selectedAssignmentDefaultEnvironmentIds;
+
   const filteredVariables = useMemo(() => {
     const normalizedSearch = normalize(variableSearchTerm);
 
@@ -498,10 +558,15 @@ export function SchedulerDashboard() {
     }
 
     return variables.filter((variable) => {
-      const environmentName = variable.environment?.name ?? "";
-      return `${variable.name} ${environmentName}`.toLowerCase().includes(normalizedSearch);
+      const assignmentText = (variableAssignmentsByVariableId[variable.id] ?? [])
+        .map((assignment) => assignment.environment?.name ?? assignment.environmentId)
+        .join(" ");
+
+      return `${variable.name} ${variable.description ?? ""} ${variable.value ?? ""} ${assignmentText}`
+        .toLowerCase()
+        .includes(normalizedSearch);
     });
-  }, [variableSearchTerm, variables]);
+  }, [variableAssignmentsByVariableId, variableSearchTerm, variables]);
 
   const filteredEvents = useMemo(() => {
     const normalizedSearch = normalize(eventSearchTerm);
@@ -541,6 +606,7 @@ export function SchedulerDashboard() {
       environmentsQuery.refetch(),
       cronsQuery.refetch(),
       variablesQuery.refetch(),
+      variableAssignmentsQuery.refetch(),
       commandsQuery.refetch(),
       commandSchedulesQuery.refetch(),
       eventsQuery.refetch(),
@@ -613,18 +679,21 @@ export function SchedulerDashboard() {
   const handleCreateVariable = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!createVariableName.trim() || !createVariableValue || !selectedCreateVariableEnvironmentId) {
+    if (!createVariableName.trim()) {
       return;
     }
 
     await createVariableMutation.mutateAsync({
-      name: createVariableName.trim().toUpperCase(),
-      value: createVariableValue,
-      environmentId: selectedCreateVariableEnvironmentId,
+      name: createVariableName.trim(),
+      description: createVariableDescription.trim() || null,
+      value: createVariableValue ? createVariableValue : undefined,
+      secretValue: createVariableSecretValue ? createVariableSecretValue : undefined,
     });
 
     setCreateVariableName("");
+    setCreateVariableDescription("");
     setCreateVariableValue("");
+    setCreateVariableSecretValue("");
   };
 
   const handleUpdateVariable = async (event: FormEvent<HTMLFormElement>) => {
@@ -636,11 +705,54 @@ export function SchedulerDashboard() {
 
     await updateVariableMutation.mutateAsync({
       id: selectedUpdateVariableId,
-      name: updateVariableName.trim().toUpperCase(),
-      value: updateVariableValue || undefined,
+      name: updateVariableName.trim(),
+      description: updateVariableDescription.trim() || null,
+      value: updateVariableValue ? updateVariableValue : undefined,
+      secretValue: updateVariableSecretValue ? updateVariableSecretValue : undefined,
     });
+  };
 
-    setVariableEdit({ value: "" });
+  const handleAssignVariable = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedAssignmentVariableId) {
+      return;
+    }
+
+    const existingAssignments = variableAssignmentsByVariableId[selectedAssignmentVariableId] ?? [];
+    const existingEnvironmentIds = new Set(existingAssignments.map((assignment) => assignment.environmentId));
+    const nextEnvironmentIds = [...new Set(selectedAssignmentEnvironmentIds)];
+
+    const missingEnvironmentIds = nextEnvironmentIds.filter(
+      (environmentId) => !existingEnvironmentIds.has(environmentId),
+    );
+    const removedAssignments = existingAssignments.filter(
+      (assignment) => !nextEnvironmentIds.includes(assignment.environmentId),
+    );
+
+    await Promise.all([
+      ...missingEnvironmentIds.map((environmentId) =>
+        createVariableAssignmentMutation.mutateAsync({
+          variableId: selectedAssignmentVariableId,
+          environmentId,
+        }),
+      ),
+      ...removedAssignments.map((assignment) =>
+        removeVariableAssignmentMutation.mutateAsync({ id: assignment.id }),
+      ),
+    ]);
+  };
+
+  const handleRemoveVariableAssignment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedVariableAssignmentId) {
+      return;
+    }
+
+    await removeVariableAssignmentMutation.mutateAsync({
+      id: selectedVariableAssignmentId,
+    });
   };
 
   const handleCreateCommand = async (event: FormEvent<HTMLFormElement>) => {
@@ -1105,129 +1217,135 @@ export function SchedulerDashboard() {
               </div>
             )}
 
+            {activeSection === "environments" && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Environments</CardTitle>
+                    <CardDescription>Create and maintain execution targets.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-5 md:grid-cols-2">
+                    <form className="space-y-2" onSubmit={handleCreateEnvironment}>
+                      <Input
+                        value={createEnvironmentName}
+                        onChange={(event) => setCreateEnvironmentName(event.target.value)}
+                        placeholder="new-environment"
+                      />
+                      <label className="flex items-center gap-2 text-sm text-zinc-600">
+                        <input
+                          type="checkbox"
+                          checked={createEnvironmentEnabled}
+                          onChange={(event) => setCreateEnvironmentEnabled(event.target.checked)}
+                        />
+                        enabled
+                      </label>
+                      <Button className="w-full" disabled={createEnvironmentMutation.isPending}>
+                        {createEnvironmentMutation.isPending ? "Creating..." : "Create environment"}
+                      </Button>
+                    </form>
+
+                    <form className="space-y-2" onSubmit={handleUpdateEnvironment}>
+                      <Select
+                        value={selectedUpdateEnvironmentId}
+                        onChange={(event) => setUpdateEnvironmentId(event.target.value)}
+                      >
+                        {environments.map((environment) => (
+                          <option key={environment.id} value={environment.id}>
+                            {environment.name}
+                          </option>
+                        ))}
+                      </Select>
+                      <Input
+                        value={updateEnvironmentName}
+                        onChange={(event) => setEnvironmentEdit({ name: event.target.value })}
+                        placeholder="updated name"
+                      />
+                      <label className="flex items-center gap-2 text-sm text-zinc-600">
+                        <input
+                          type="checkbox"
+                          checked={updateEnvironmentEnabled}
+                          onChange={(event) => setEnvironmentEdit({ enabled: event.target.checked })}
+                        />
+                        enabled
+                      </label>
+                      <Button variant="secondary" className="w-full" disabled={updateEnvironmentMutation.isPending}>
+                        {updateEnvironmentMutation.isPending ? "Updating..." : "Update environment"}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {activeSection === "crons" && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Cron definitions</CardTitle>
+                    <CardDescription>Reusable run schedules shared across commands.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-5 md:grid-cols-2">
+                    <form className="space-y-2" onSubmit={handleCreateCron}>
+                      <Input
+                        value={createCronName}
+                        onChange={(event) => setCreateCronName(event.target.value)}
+                        placeholder="daily-report"
+                      />
+                      <Input
+                        value={createCronExpression}
+                        onChange={(event) => setCreateCronExpression(event.target.value)}
+                        placeholder="* * * * *"
+                      />
+                      <label className="flex items-center gap-2 text-sm text-zinc-600">
+                        <input
+                          type="checkbox"
+                          checked={createCronEnabled}
+                          onChange={(event) => setCreateCronEnabled(event.target.checked)}
+                        />
+                        enabled
+                      </label>
+                      <Button className="w-full" disabled={createCronMutation.isPending}>
+                        {createCronMutation.isPending ? "Creating..." : "Create cron"}
+                      </Button>
+                    </form>
+
+                    <form className="space-y-2" onSubmit={handleUpdateCron}>
+                      <Select value={selectedUpdateCronId} onChange={(event) => setUpdateCronId(event.target.value)}>
+                        {crons.map((cron) => (
+                          <option key={cron.id} value={cron.id}>
+                            {cron.name}
+                          </option>
+                        ))}
+                      </Select>
+                      <Input
+                        value={updateCronName}
+                        onChange={(event) => setCronEdit({ name: event.target.value })}
+                        placeholder="cron name"
+                      />
+                      <Input
+                        value={updateCronExpression}
+                        onChange={(event) => setCronEdit({ crontabExpression: event.target.value })}
+                        placeholder="* * * * *"
+                      />
+                      <label className="flex items-center gap-2 text-sm text-zinc-600">
+                        <input
+                          type="checkbox"
+                          checked={updateCronEnabled}
+                          onChange={(event) => setCronEdit({ enabled: event.target.checked })}
+                        />
+                        enabled
+                      </label>
+                      <Button variant="secondary" className="w-full" disabled={updateCronMutation.isPending}>
+                        {updateCronMutation.isPending ? "Updating..." : "Update cron"}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             {activeSection === "scheduling" && (
               <div className="space-y-6">
-                <section className="grid gap-6 xl:grid-cols-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Environments</CardTitle>
-                      <CardDescription>Create and maintain execution targets.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-5 md:grid-cols-2">
-                      <form className="space-y-2" onSubmit={handleCreateEnvironment}>
-                        <Input
-                          value={createEnvironmentName}
-                          onChange={(event) => setCreateEnvironmentName(event.target.value)}
-                          placeholder="new-environment"
-                        />
-                        <label className="flex items-center gap-2 text-sm text-zinc-600">
-                          <input
-                            type="checkbox"
-                            checked={createEnvironmentEnabled}
-                            onChange={(event) => setCreateEnvironmentEnabled(event.target.checked)}
-                          />
-                          enabled
-                        </label>
-                        <Button className="w-full" disabled={createEnvironmentMutation.isPending}>
-                          {createEnvironmentMutation.isPending ? "Creating..." : "Create environment"}
-                        </Button>
-                      </form>
-
-                      <form className="space-y-2" onSubmit={handleUpdateEnvironment}>
-                        <Select
-                          value={selectedUpdateEnvironmentId}
-                          onChange={(event) => setUpdateEnvironmentId(event.target.value)}
-                        >
-                          {environments.map((environment) => (
-                            <option key={environment.id} value={environment.id}>
-                              {environment.name}
-                            </option>
-                          ))}
-                        </Select>
-                        <Input
-                          value={updateEnvironmentName}
-                          onChange={(event) => setEnvironmentEdit({ name: event.target.value })}
-                          placeholder="updated name"
-                        />
-                        <label className="flex items-center gap-2 text-sm text-zinc-600">
-                          <input
-                            type="checkbox"
-                            checked={updateEnvironmentEnabled}
-                            onChange={(event) => setEnvironmentEdit({ enabled: event.target.checked })}
-                          />
-                          enabled
-                        </label>
-                        <Button variant="secondary" className="w-full" disabled={updateEnvironmentMutation.isPending}>
-                          {updateEnvironmentMutation.isPending ? "Updating..." : "Update environment"}
-                        </Button>
-                      </form>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Cron definitions</CardTitle>
-                      <CardDescription>Reusable run schedules shared across commands.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-5 md:grid-cols-2">
-                      <form className="space-y-2" onSubmit={handleCreateCron}>
-                        <Input
-                          value={createCronName}
-                          onChange={(event) => setCreateCronName(event.target.value)}
-                          placeholder="daily-report"
-                        />
-                        <Input
-                          value={createCronExpression}
-                          onChange={(event) => setCreateCronExpression(event.target.value)}
-                          placeholder="* * * * *"
-                        />
-                        <label className="flex items-center gap-2 text-sm text-zinc-600">
-                          <input
-                            type="checkbox"
-                            checked={createCronEnabled}
-                            onChange={(event) => setCreateCronEnabled(event.target.checked)}
-                          />
-                          enabled
-                        </label>
-                        <Button className="w-full" disabled={createCronMutation.isPending}>
-                          {createCronMutation.isPending ? "Creating..." : "Create cron"}
-                        </Button>
-                      </form>
-
-                      <form className="space-y-2" onSubmit={handleUpdateCron}>
-                        <Select value={selectedUpdateCronId} onChange={(event) => setUpdateCronId(event.target.value)}>
-                          {crons.map((cron) => (
-                            <option key={cron.id} value={cron.id}>
-                              {cron.name}
-                            </option>
-                          ))}
-                        </Select>
-                        <Input
-                          value={updateCronName}
-                          onChange={(event) => setCronEdit({ name: event.target.value })}
-                          placeholder="cron name"
-                        />
-                        <Input
-                          value={updateCronExpression}
-                          onChange={(event) => setCronEdit({ crontabExpression: event.target.value })}
-                          placeholder="* * * * *"
-                        />
-                        <label className="flex items-center gap-2 text-sm text-zinc-600">
-                          <input
-                            type="checkbox"
-                            checked={updateCronEnabled}
-                            onChange={(event) => setCronEdit({ enabled: event.target.checked })}
-                          />
-                          enabled
-                        </label>
-                        <Button variant="secondary" className="w-full" disabled={updateCronMutation.isPending}>
-                          {updateCronMutation.isPending ? "Updating..." : "Update cron"}
-                        </Button>
-                      </form>
-                    </CardContent>
-                  </Card>
-                </section>
-
                 <Card>
                   <CardHeader>
                     <CardTitle>Command schedule mapping</CardTitle>
@@ -1304,33 +1422,33 @@ export function SchedulerDashboard() {
 
             {activeSection === "variables" && (
               <div className="space-y-6">
-                <section className="grid gap-6 xl:grid-cols-2">
+                <section className="grid gap-6 xl:grid-cols-3">
                   <Card>
                     <CardHeader>
                       <CardTitle>Create variable</CardTitle>
-                      <CardDescription>Add a secret variable scoped to one environment.</CardDescription>
+                      <CardDescription>Create a variable with description and default value.</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <form className="space-y-3" onSubmit={handleCreateVariable}>
-                        <Select
-                          value={selectedCreateVariableEnvironmentId}
-                          onChange={(event) => setCreateVariableEnvironmentId(event.target.value)}
-                        >
-                          {environments.map((environment) => (
-                            <option key={environment.id} value={environment.id}>
-                              {environment.name}
-                            </option>
-                          ))}
-                        </Select>
                         <Input
                           value={createVariableName}
                           onChange={(event) => setCreateVariableName(event.target.value)}
                           placeholder="VARIABLE_NAME"
                         />
                         <Textarea
+                          value={createVariableDescription}
+                          onChange={(event) => setCreateVariableDescription(event.target.value)}
+                          placeholder="Description (optional)"
+                        />
+                        <Textarea
                           value={createVariableValue}
                           onChange={(event) => setCreateVariableValue(event.target.value)}
-                          placeholder="secret value"
+                          placeholder="Value (optional)"
+                        />
+                        <Textarea
+                          value={createVariableSecretValue}
+                          onChange={(event) => setCreateVariableSecretValue(event.target.value)}
+                          placeholder="Secret value (optional)"
                         />
                         <Button className="w-full" disabled={createVariableMutation.isPending}>
                           {createVariableMutation.isPending ? "Creating..." : "Create variable"}
@@ -1341,8 +1459,8 @@ export function SchedulerDashboard() {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle>Rotate variable</CardTitle>
-                      <CardDescription>Rename and rotate secret values in place.</CardDescription>
+                      <CardTitle>Update variable</CardTitle>
+                      <CardDescription>Update name, description, or value for an existing variable.</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <form className="space-y-3" onSubmit={handleUpdateVariable}>
@@ -1352,7 +1470,7 @@ export function SchedulerDashboard() {
                         >
                           {variables.map((variable) => (
                             <option key={variable.id} value={variable.id}>
-                              {variable.name}
+                              {variableLabel(variable)}
                             </option>
                           ))}
                         </Select>
@@ -1362,12 +1480,83 @@ export function SchedulerDashboard() {
                           placeholder="VARIABLE_NAME"
                         />
                         <Textarea
+                          value={updateVariableDescription}
+                          onChange={(event) => setVariableEdit({ description: event.target.value })}
+                          placeholder="Description (optional)"
+                        />
+                        <Textarea
                           value={updateVariableValue}
                           onChange={(event) => setVariableEdit({ value: event.target.value })}
-                          placeholder="new secret value"
+                          placeholder="Value (leave blank to keep current)"
+                        />
+                        <Textarea
+                          value={updateVariableSecretValue}
+                          onChange={(event) => setVariableEdit({ secretValue: event.target.value })}
+                          placeholder="New secret value (leave blank to keep current)"
                         />
                         <Button variant="secondary" className="w-full" disabled={updateVariableMutation.isPending}>
                           {updateVariableMutation.isPending ? "Updating..." : "Update variable"}
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Assign variable to environment</CardTitle>
+                      <CardDescription>
+                        Variables can belong to many environments. Choose one variable, then set all linked environments.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form className="space-y-3" onSubmit={handleAssignVariable}>
+                        <Select
+                          value={selectedAssignmentVariableId}
+                          onChange={(event) => setAssignmentVariableId(event.target.value)}
+                        >
+                          {variables.map((variable) => (
+                            <option key={variable.id} value={variable.id}>
+                              {variableLabel(variable)}
+                            </option>
+                          ))}
+                        </Select>
+                        {selectedAssignmentVariable ? (
+                          <p className="text-xs text-zinc-500">
+                            Description: {selectedAssignmentVariable.description?.trim() || "(none)"}
+                          </p>
+                        ) : null}
+                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Environments</p>
+                          <div className="space-y-1">
+                            {environments.map((environment) => (
+                              <label key={environment.id} className="flex items-center gap-2 text-sm text-zinc-700">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedAssignmentEnvironmentIds.includes(environment.id)}
+                                  onChange={() =>
+                                    setAssignmentEnvironmentEdits((current) => {
+                                      const base = current[selectedAssignmentVariableId] ?? selectedAssignmentDefaultEnvironmentIds;
+                                      return {
+                                        ...current,
+                                        [selectedAssignmentVariableId]: toggleSelection(base, environment.id),
+                                      };
+                                    })
+                                  }
+                                />
+                                {environment.name}
+                                {!environment.enabled ? <span className="text-zinc-400">(disabled)</span> : null}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <Button
+                          variant="secondary"
+                          className="w-full"
+                          disabled={createVariableAssignmentMutation.isPending || removeVariableAssignmentMutation.isPending}
+                        >
+                          {createVariableAssignmentMutation.isPending || removeVariableAssignmentMutation.isPending
+                            ? "Saving..."
+                            : "Save environment links"}
                         </Button>
                       </form>
                     </CardContent>
@@ -1376,8 +1565,41 @@ export function SchedulerDashboard() {
 
                 <Card>
                   <CardHeader>
+                    <CardTitle>Unassign variable from environment</CardTitle>
+                    <CardDescription>Remove a variable/environment link.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form className="space-y-3" onSubmit={handleRemoveVariableAssignment}>
+                      <Select
+                        value={selectedVariableAssignmentId}
+                        onChange={(event) => setSelectedAssignmentId(event.target.value)}
+                      >
+                        {variableAssignments.map((assignment) => (
+                          <option key={assignment.id} value={assignment.id}>
+                            {(assignment.variable?.name ?? assignment.variableId)}
+                            {assignment.variable?.description?.trim()
+                              ? ` - ${assignment.variable.description}`
+                              : ` - ${assignment.variableId.slice(0, 8)}`}{" "}
+                            @{" "}
+                            {assignment.environment?.name ?? assignment.environmentId}
+                          </option>
+                        ))}
+                      </Select>
+                      <Button
+                        variant="secondary"
+                        className="w-full md:w-auto"
+                        disabled={removeVariableAssignmentMutation.isPending}
+                      >
+                        {removeVariableAssignmentMutation.isPending ? "Removing..." : "Remove assignment"}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
                     <CardTitle>Variable inventory</CardTitle>
-                    <CardDescription>Search variable keys by name and environment.</CardDescription>
+                    <CardDescription>Variables can be linked to zero or many environments.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="mb-4 flex items-center gap-3">
@@ -1396,23 +1618,47 @@ export function SchedulerDashboard() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Variable</TableHead>
-                          <TableHead>Environment</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Value</TableHead>
+                          <TableHead>Secret value</TableHead>
+                          <TableHead>Environment Links</TableHead>
                           <TableHead>State</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredVariables.map((variable) => (
-                          <TableRow key={variable.id}>
-                            <TableCell className="font-medium">{variable.name}</TableCell>
-                            <TableCell>{variable.environment?.name ?? variable.environmentId}</TableCell>
-                            <TableCell>
-                              <Badge variant="default">Encrypted at rest</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {filteredVariables.map((variable) => {
+                          const assignments = variableAssignmentsByVariableId[variable.id] ?? [];
+                          const assignmentLabels =
+                            assignments.length === 0
+                              ? "None"
+                              : assignments
+                                  .map((assignment) => assignment.environment?.name ?? assignment.environmentId)
+                                  .join(", ");
+
+                          return (
+                            <TableRow key={variable.id}>
+                              <TableCell className="font-medium">{variable.name}</TableCell>
+                              <TableCell className="text-zinc-600">
+                                {variable.description?.trim() || "-"}
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-zinc-700">
+                                {variable.value?.trim() || "-"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={variable.secretValue ? "success" : "default"}>
+                                  {variable.secretValue ? "set" : "not set"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{assignmentLabels}</TableCell>
+                              <TableCell>
+                                {assignments.length === 0 ? <Badge variant="warning">Default only</Badge> : <Badge variant="success">Scoped</Badge>}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                         {!loading && filteredVariables.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={3} className="text-zinc-500">No variables matched your search.</TableCell>
+                            <TableCell colSpan={6} className="text-zinc-500">No variables matched your search.</TableCell>
                           </TableRow>
                         )}
                       </TableBody>
@@ -1424,9 +1670,22 @@ export function SchedulerDashboard() {
 
             {activeSection === "events" && (
               <Card>
-                <CardHeader>
-                  <CardTitle>Execution events</CardTitle>
-                  <CardDescription>Searchable, filterable, and paginated event history.</CardDescription>
+                <CardHeader className="flex flex-row items-start justify-between gap-3">
+                  <div>
+                    <CardTitle>Execution events</CardTitle>
+                    <CardDescription>Searchable, filterable, and paginated event history.</CardDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="inline-flex items-center gap-2"
+                    onClick={() => void eventsQuery.refetch()}
+                    disabled={eventsQuery.isFetching}
+                  >
+                    <RefreshCw className={eventsQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+                    {eventsQuery.isFetching ? "Refreshing..." : "Refresh"}
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_120px]">
